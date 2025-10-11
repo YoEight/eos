@@ -1,31 +1,35 @@
-module Math.Eos.Lexical (tokenize) where
+module Math.Eos.Lexical (tokenize, runTokenize, parseSym, parseSyms) where
+
+import Prelude hiding (takeWhile)
 
 import Control.Applicative ((<|>))
-import Control.Arrow ((&&&))
 import Control.Monad.Except (throwError)
 import Control.Monad.State
 import Data.Attoparsec.Text qualified as Atto
 import Data.Char (isDigit, isLetter, ord)
 import Data.Functor (($>))
 import Data.Int
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Math.Eos.Sym
 
 data Internal
     = Internal
-    { internalLine :: !Int
-    , internalCol :: !Int
+    { internalPos :: !Pos
     , internalInput :: !String
     }
     deriving (Show, Eq)
 
-tokenize :: String -> Either String [Sym]
-tokenize input = fst <$> runStateT parseSyms start
-  where
-    start = Internal{internalLine = 1, internalCol = 1, internalInput = input}
-
 type Tokenize a = StateT Internal (Either String) a
+
+tokenize :: String -> Either String [Sym]
+tokenize = runTokenize parseSyms
+
+runTokenize :: Tokenize a -> String -> Either String a
+runTokenize action input = fst <$> runStateT action start
+  where
+    start = Internal{internalPos = posDefault, internalInput = input}
 
 lookAhead :: Tokenize (Maybe Char)
 lookAhead = skipSpaces *> gets (go . internalInput)
@@ -45,60 +49,70 @@ shift = do
     go =<< get
   where
     go s = case internalInput s of
-        (x : xs) -> x <$ put s{internalCol = internalCol s + 1, internalInput = xs}
+        (x : xs) -> x <$ put s{internalPos = posColIncr $ internalPos s, internalInput = xs}
         _ -> throwError "unexpected en of input"
 
-position :: Tokenize (Int, Int)
-position = gets (internalLine &&& internalCol)
+takeWhile :: (Char -> Bool) -> Tokenize String
+takeWhile f = go
+  where
+    go = do
+        opt <- lookAhead
+        case opt of
+            Nothing -> pure []
+            Just x
+                | f x -> shift *> fmap (x :) go
+                | otherwise -> pure []
+
+position :: Tokenize Pos
+position = gets internalPos
 
 skipSpaces :: Tokenize ()
 skipSpaces = modify go
   where
     go s = case internalInput s of
-        (' ' : xs) -> go s{internalInput = xs, internalCol = internalCol s + 1}
+        (' ' : xs) -> go s{internalInput = xs, internalPos = posColIncr $ internalPos s}
         _ -> s
 
 parseSyms :: Tokenize [Sym]
-parseSyms = (:) <$> parseSym <*> parseSyms
+parseSyms = (:) <$> parseSym <*> go
+  where
+    go = do
+        opt <- lookAhead
+        if isJust opt
+            then parseSyms
+            else pure []
 
 parseSym :: Tokenize Sym
 parseSym = go =<< lookAheadOrBail
   where
-    go '(' = pure SymLParens
-    go ')' = pure SymRParens
+    go '(' = SymLParens <$ shift
+    go ')' = SymRParens <$ shift
     go c
         | isLetter c = parseVar
-        | isDigit c = parseNumer
+        | isDigit c = parseNumber
         | otherwise = parseOperator
 
--- tokenize :: Text -> Either String [Sym]
--- tokenize = Atto.parseOnly (Atto.many1 parseSym <* Atto.endOfInput)
+parseVar :: Tokenize Sym
+parseVar = SymVar <$> takeWhile isLetter
 
--- parseSym :: Atto.Parser Sym
--- parseSym = do
---     Atto.skipSpace
---     ch <- Atto.peekChar'
---     go ch
---   where
---     go '(' = Atto.take 1 $> SymLParens
---     go ')' = Atto.take 1 $> SymRParens
---     go c
---         | isLetter c = SymVar <$> Atto.takeWhile1 (\c -> isLetter c || isDigit c)
---         | isDigit c = SymNumber . intoNumber <$> Atto.takeWhile1 isLetter
---         | otherwise = SymOp <$> parseOperator
+parseNumber :: Tokenize Sym
+parseNumber = SymNumber . intoNumber <$> takeWhile isDigit
 
--- parseOperator :: Atto.Parser Operator
--- parseOperator =
---     Atto.char '+' $> Add
---         <|> Atto.char '-' $> Sub
---         <|> Atto.char '*' $> Mul
---         <|> Atto.char '/' $> Div
---         <|> Atto.char '^' $> Exp
---         <|> Atto.char '=' $> Equal
+parseOperator :: Tokenize Sym
+parseOperator = do
+    pos <- position
+    go pos =<< shift
+  where
+    go _ '-' = pure $ SymOp Sub
+    go _ '*' = pure $ SymOp Mul
+    go _ '+' = pure $ SymOp Add
+    go _ '/' = pure $ SymOp Div
+    go _ '=' = pure $ SymOp Equal
+    go p x = throwError $ show p ++ ": unexpected character '" ++ show x ++ "'"
 
--- intoNumber :: Text -> Int
--- intoNumber = snd . T.foldr go (1, 0)
---   where
---     int c = ord c - ord '0'
+intoNumber :: String -> Int
+intoNumber = snd . foldr go (1, 0)
+  where
+    int c = ord c - ord '0'
 
---     go c (base, acc) = (10 * base, int c * base)
+    go c (base, acc) = (10 * base, int c * base)

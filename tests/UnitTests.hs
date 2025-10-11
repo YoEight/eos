@@ -12,7 +12,7 @@ test_tokenize_sums = "tokenize a sum properly" ~: go
   where
     go = case tokenize "1 + 2 + 3" of
         Left s -> assertFailure s
-        Right syms -> syms @=? []
+        Right syms -> syms @=? [SymNumber 1, SymOp Add, SymNumber 2, SymOp Add, SymNumber 3]
 
 tests :: Test
 tests = TestList [TestLabel "lexical analysis" lexical_tests]
