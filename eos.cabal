@@ -54,7 +54,9 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
+
 library
+    default-language: GHC2021
     hs-source-dirs: src
 
     exposed-modules:
@@ -62,9 +64,18 @@ library
         Math.Eos.Sym
 
     build-depends:    base ^>=4.18.3.0
-                      , attoparsec ^>= 0.14
-                      , text ^>= 2
+                      , attoparsec ^>=0.14
+                      , text ^>=2.0
+                      , mtl >=2 && <3
 
+test-suite unittests
+    default-language: GHC2021
+    type:    exitcode-stdio-1.0
+    hs-source-dirs:    tests
+    main-is:    UnitTests.hs
+    build-depends:    base ^>=4.18.3.0
+                      , eos
+                      , HUnit ^>=1.6
 executable eos
     -- Import common warning flags.
     import:           warnings
