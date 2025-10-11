@@ -60,9 +60,10 @@ library
     hs-source-dirs: src
 
     exposed-modules:
-        Math.Eos.Lexical
         Math.Eos.Ast
+        Math.Eos.Lexical
         Math.Eos.Mu
+        Math.Eos.Parser
         Math.Eos.Sym
 
     build-depends:    base ^>=4.18.3.0
