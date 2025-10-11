@@ -61,6 +61,8 @@ library
 
     exposed-modules:
         Math.Eos.Lexical
+        Math.Eos.Ast
+        Math.Eos.Mu
         Math.Eos.Sym
 
     build-depends:    base ^>=4.18.3.0
