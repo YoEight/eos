@@ -9,7 +9,15 @@ data Operator
     | Div
     | Exp
     | Equal
-    deriving (Eq, Show)
+    deriving (Eq)
+
+instance Show Operator where
+    show Add = "+"
+    show Sub = "-"
+    show Mul = "*"
+    show Div = "/"
+    show Exp = "^"
+    show Equal = "="
 
 data Sym
     = SymNumber !Int
@@ -17,15 +25,11 @@ data Sym
     | SymOp !Operator
     | SymLParens
     | SymRParens
-    deriving (Eq, Show)
+    deriving (Eq)
 
-data Pos = Pos {posLine :: !Int, posCol :: !Int} deriving (Eq)
-
-instance Show Pos where
-    show p = show (posLine p) ++ ":" ++ show (posCol p)
-
-posDefault :: Pos
-posDefault = Pos{posLine = 1, posCol = 1}
-
-posColIncr :: Pos -> Pos
-posColIncr p = p{posCol = posCol p + 1}
+instance Show Sym where
+    show (SymNumber n) = show n
+    show (SymVar n) = n
+    show (SymOp op) = show op
+    show SymLParens = "("
+    show SymRParens = ")"
