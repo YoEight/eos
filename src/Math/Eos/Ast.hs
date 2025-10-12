@@ -72,9 +72,7 @@ parseBinary min_bind = do
                             let (lhs_bind, rhs_bind) = bindingPow op
                              in if lhs_bind < min_bind
                                     then pure lhs
-                                    else do
-                                        rhs <- parseBinary rhs_bind
-                                        loop (binary op lhs rhs)
+                                    else loop . binary op lhs =<< parseBinary rhs_bind
                         x -> throwError $ "expected an operator but got '" ++ show x ++ "'"
 
 parsePrimary :: Parser Sym Ast
