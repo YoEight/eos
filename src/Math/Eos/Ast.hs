@@ -2,6 +2,7 @@ module Math.Eos.Ast where
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
+import Data.Functor.Classes
 
 import Math.Eos.Mu
 import Math.Eos.Parser
@@ -15,6 +16,15 @@ data Term a
     | TermBinary Operator a a
     | TermUnary Operator a
     | TermGroup a
+    deriving (Eq)
+
+instance Eq1 Term where
+    liftEq _ (TermNumber x) (TermNumber y) = x == y
+    liftEq _ (TermVar x n) (TermVar y m) = x == y && n == m
+    liftEq f (TermBinary opa la ra) (TermBinary opb lb rb) = opa == opb && f la lb && f ra rb
+    liftEq f (TermUnary opa a) (TermUnary opb b) = opa == opb && f a b
+    liftEq f (TermGroup a) (TermGroup b) = f a b
+    liftEq _ _ _ = False
 
 instance Functor Term where
     fmap _ (TermNumber n) = TermNumber n
@@ -48,11 +58,6 @@ parseAst = go =<< lookAheadOrBail
     parseUnary = do
         shift
         unary Sub <$> parseAst
-
-isPrimary :: Sym -> Bool
-isPrimary (SymNumber _) = True
-isPrimary (SymVar _) = True
-isPrimary _ = False
 
 parseBinary :: Int -> Parser Sym Ast
 parseBinary min_bind = do
