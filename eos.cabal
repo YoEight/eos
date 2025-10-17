@@ -62,7 +62,6 @@ library
     exposed-modules:
         Math.Eos.Ast
         Math.Eos.Lexical
-        Math.Eos.Mu
         Math.Eos.Parser
         Math.Eos.Sym
 
@@ -70,6 +69,8 @@ library
                       , attoparsec ^>=0.14
                       , text ^>=2.0
                       , mtl >=2 && <3
+                      , recursion-schemes ^>=5.2
+                      , data-fix ^>=0.3
 
 test-suite unittests
     default-language: GHC2021

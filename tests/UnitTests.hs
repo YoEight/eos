@@ -26,12 +26,17 @@ test_parser_exp = "parser exp properly" ~: go
   where
     go = case parseExpr "1 + 2 ^ 3" of
         Left s -> assertFailure s
-        Right ast -> ast @=? []
+        Right ast -> ast @=? binary Add (number 1) (binary Exp (number 2) (number 3))
 
 tests :: Test
-tests = TestList [TestLabel "lexical analysis" lexical_tests]
+tests =
+    TestList
+        [ TestLabel "lexical analysis" lexical_tests
+        , TestLabel "parsing" parser_tests
+        ]
   where
     lexical_tests = TestList [test_tokenize_sums]
+    parser_tests = TestList [test_parser_exp]
 
 main :: IO ()
 main = runTestTTAndExit tests

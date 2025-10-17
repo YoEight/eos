@@ -2,49 +2,60 @@ module Math.Eos.Ast where
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
+import Data.Fix (Fix (..))
+import Data.Foldable
 import Data.Functor.Classes
 
-import Math.Eos.Mu
 import Math.Eos.Parser
 import Math.Eos.Sym
 
-type Ast = Mu Term
+type Ast = Fix Ast'
 
-data Term a
-    = TermNumber Int
-    | TermVar String Int
-    | TermBinary Operator a a
-    | TermUnary Operator a
-    | TermGroup a
+data Ast' a
+    = AstNumber Int
+    | AstVar String Int
+    | AstBinary Operator a a
+    | AstUnary Operator a
+    | AstGroup a
     deriving (Eq)
 
-instance Eq1 Term where
-    liftEq _ (TermNumber x) (TermNumber y) = x == y
-    liftEq _ (TermVar x n) (TermVar y m) = x == y && n == m
-    liftEq f (TermBinary opa la ra) (TermBinary opb lb rb) = opa == opb && f la lb && f ra rb
-    liftEq f (TermUnary opa a) (TermUnary opb b) = opa == opb && f a b
-    liftEq f (TermGroup a) (TermGroup b) = f a b
+instance (Show a) => Show (Ast' a) where
+    showsPrec = liftShowsPrec showsPrec showList
+
+instance Show1 Ast' where
+    liftShowsPrec sp _ d (AstNumber n) = showsUnaryWith showsPrec "" d n
+    liftShowsPrec sp _ d (AstVar n coeff) = showsUnaryWith showsPrec (n ++ "^") d coeff
+    liftShowsPrec sp _ _ (AstBinary op l r) = sp 0 l . showString " " . shows op . showString " " . sp 0 r
+    liftShowsPrec sp _ _ (AstUnary op i) = shows op . showString " " . sp 0 i
+    liftShowsPrec sp _ _ (AstGroup i) = showString "(" . sp 0 i . showString ")"
+
+instance Eq1 Ast' where
+    liftEq _ (AstNumber x) (AstNumber y) = x == y
+    liftEq _ (AstVar x n) (AstVar y m) = x == y && n == m
+    liftEq f (AstBinary opa la ra) (AstBinary opb lb rb) = opa == opb && f la lb && f ra rb
+    liftEq f (AstUnary opa a) (AstUnary opb b) = opa == opb && f a b
+    liftEq f (AstGroup a) (AstGroup b) = f a b
     liftEq _ _ _ = False
 
-instance Functor Term where
-    fmap _ (TermNumber n) = TermNumber n
-    fmap _ (TermVar n c) = TermVar n c
-    fmap f (TermBinary op lhs rhs) = TermBinary op (f lhs) (f rhs)
+instance Functor Ast' where
+    fmap _ (AstNumber n) = AstNumber n
+    fmap _ (AstVar n c) = AstVar n c
+    fmap f (AstBinary op lhs rhs) = AstBinary op (f lhs) (f rhs)
 
 number :: Int -> Ast
-number = Mu . TermNumber
+number = Fix . AstNumber
 
 var :: String -> Ast
-var n = Mu $ TermVar n 1
+var n = Fix $ AstVar n 1
 
 binary :: Operator -> Ast -> Ast -> Ast
-binary op lhs rhs = Mu $ TermBinary op lhs rhs
+binary op lhs rhs = Fix $ AstBinary op lhs rhs
 
 unary :: Operator -> Ast -> Ast
-unary op = Mu . TermUnary op
+unary op = Fix . AstUnary op
 
 group :: Ast -> Ast
-group = Mu . TermGroup
+group = Fix . AstGroup
 
 parseAst :: Parser Sym Ast
 parseAst = go =<< lookAheadOrBail
