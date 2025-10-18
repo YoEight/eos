@@ -67,6 +67,7 @@ parseOperator = go =<< shift
     go '*' = pure $ SymOp Mul
     go '+' = pure $ SymOp Add
     go '/' = pure $ SymOp Div
+    go '^' = pure $ SymOp Exp
     go '=' = pure $ SymOp Equal
     go x = throwError $ ": unexpected character '" ++ show x ++ "'"
 

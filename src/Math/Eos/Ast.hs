@@ -23,9 +23,11 @@ instance (Show a) => Show (Ast' a) where
     showsPrec = liftShowsPrec showsPrec showList
 
 instance Show1 Ast' where
-    liftShowsPrec sp _ d (AstNumber n) = showsUnaryWith showsPrec "" d n
-    liftShowsPrec sp _ d (AstVar n coeff) = showsUnaryWith showsPrec (n ++ "^") d coeff
-    liftShowsPrec sp _ _ (AstBinary op l r) = sp 0 l . showString " " . shows op . showString " " . sp 0 r
+    liftShowsPrec sp _ d (AstNumber n) = showsPrec d n
+    liftShowsPrec sp _ d (AstVar n coeff)
+        | coeff == 1 = showsUnaryWith showsPrec n d coeff
+        | otherwise = showsUnaryWith showsPrec (n ++ "^") d coeff
+    liftShowsPrec sp sl d (AstBinary op l r) = showsBinaryWith sp sp ("Binary " ++ show op) d l r
     liftShowsPrec sp _ _ (AstUnary op i) = shows op . showString " " . sp 0 i
     liftShowsPrec sp _ _ (AstGroup i) = showString "(" . sp 0 i . showString ")"
 
@@ -84,11 +86,12 @@ parseBinary min_bind = do
                 | sym == SymRParens -> pure lhs
                 | otherwise ->
                     case sym of
-                        SymOp op ->
+                        SymOp op -> do
+                            shift
                             let (lhs_bind, rhs_bind) = bindingPow op
-                             in if lhs_bind < min_bind
-                                    then pure lhs
-                                    else loop . binary op lhs =<< parseBinary rhs_bind
+                            if lhs_bind < min_bind
+                                then pure lhs
+                                else loop . binary op lhs =<< parseBinary rhs_bind
                         x -> throwError $ "expected an operator but got '" ++ show x ++ "'"
 
 parsePrimary :: Parser Sym Ast
