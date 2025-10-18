@@ -1,8 +1,7 @@
+use crate::lang::Position;
 use crate::lang::lexical::lexer::Lexer;
 use crate::lang::nursery::Nursery;
 use crate::lang::token::{Sym, Token};
-use crate::lang::Position;
-
 
 #[test]
 fn test_tokenize_sum() -> crate::lang::Result<()> {

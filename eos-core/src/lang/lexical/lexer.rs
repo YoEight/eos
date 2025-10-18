@@ -1,5 +1,5 @@
-use crate::lang::lexical::text::Text;
 use crate::lang::lexical::Error;
+use crate::lang::lexical::text::Text;
 use crate::lang::nursery::Nursery;
 use crate::lang::token::{Sym, Token};
 

@@ -1,4 +1,4 @@
-use crate::lang::{lexical, Position};
+use crate::lang::{Position, lexical};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use crate::lang::Position;
 use std::collections::HashMap;
-use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher};
 
 #[derive(Default)]
 pub struct Nursery {
@@ -23,7 +23,7 @@ impl Nursery {
     pub fn get_string_or_panic(&self, pos: Position) -> &str {
         if let Some(h) = self.locs.get(&pos) {
             if let Some(name) = self.names.get(h) {
-                return name.as_str()
+                return name.as_str();
             }
         }
 

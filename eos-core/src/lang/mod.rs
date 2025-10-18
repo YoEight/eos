@@ -3,6 +3,7 @@ use std::fmt::Display;
 #[macro_use]
 mod macros;
 
+mod ast;
 mod error;
 mod lexical;
 mod nursery;
