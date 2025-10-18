@@ -5,18 +5,16 @@ use crate::lang::token::{Sym, Token};
 
 pub struct Lexer<'a> {
     text: Text<'a>,
-    nursery: Nursery,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(expr: &'a str) -> Self {
         Self {
             text: Text::new(expr),
-            nursery: Nursery::default(),
         }
     }
 
-    pub fn next_token(&mut self) -> crate::lang::Result<Token> {
+    pub fn next_token(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Token> {
         let mut position = self.text.position();
 
         if let Some(c) = self.text.look_ahead()
@@ -30,13 +28,13 @@ impl<'a> Lexer<'a> {
             match c {
                 '(' | ')' => {
                     self.text.shift();
-                    self.nursery.register_char(position, c);
+                    nursery.register_char(position, c);
                     Ok(Token::new(Sym::Symbol, position))
                 }
 
                 '+' | '-' | '*' | '/' | '=' | '^' => {
                     self.text.shift();
-                    self.nursery.register_char(position, c);
+                    nursery.register_char(position, c);
                     Ok(Token::new(Sym::Operator, position))
                 }
 
@@ -55,7 +53,7 @@ impl<'a> Lexer<'a> {
                         numbers.push(c);
                     }
 
-                    self.nursery.register_string(position, numbers);
+                    nursery.register_string(position, numbers);
 
                     Ok(Token::new(Sym::Number, position))
                 }
@@ -75,7 +73,7 @@ impl<'a> Lexer<'a> {
                         name.push(c);
                     }
 
-                    self.nursery.register_string(position, name);
+                    nursery.register_string(position, name);
 
                     Ok(Token::new(Sym::Variable, position))
                 }
@@ -85,5 +83,21 @@ impl<'a> Lexer<'a> {
         } else {
             Ok(Token::new(Sym::EOF, position))
         }
+    }
+
+    pub fn collect_tokens(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Vec<Token>> {
+        let mut tokens = Vec::new();
+
+        loop {
+            let token = self.next_token(nursery)?;
+
+            tokens.push(token);
+
+            if token.sym == Sym::EOF {
+                break;
+            }
+        }
+
+        Ok(tokens)
     }
 }

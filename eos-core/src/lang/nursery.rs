@@ -1,14 +1,19 @@
 use crate::lang::Position;
 use std::collections::HashMap;
+use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher, Hash, Hasher};
 
 #[derive(Default)]
 pub struct Nursery {
-    inner: HashMap<Position, String>,
+    hasher_builder: BuildHasherDefault<DefaultHasher>,
+    locs: HashMap<Position, u64>,
+    names: HashMap<u64, String>,
 }
 
 impl Nursery {
     pub fn register_string(&mut self, pos: Position, expr: String) {
-        self.inner.insert(pos, expr);
+        let hash = self.hash_expr(&expr);
+        self.names.insert(hash, expr);
+        self.locs.insert(pos, hash);
     }
 
     pub fn register_char(&mut self, pos: Position, c: char) {
@@ -16,10 +21,16 @@ impl Nursery {
     }
 
     pub fn get_string_or_panic(&self, pos: Position) -> &str {
-        if let Some(s) = self.inner.get(&pos) {
-            return s.as_str();
+        if let Some(h) = self.locs.get(&pos) {
+            if let Some(name) = self.names.get(h) {
+                return name.as_str()
+            }
         }
 
         panic!("nursery: no string at position {pos}")
+    }
+
+    fn hash_expr(&mut self, expr: &String) -> u64 {
+        self.hasher_builder.hash_one(expr)
     }
 }
