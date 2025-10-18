@@ -3,6 +3,9 @@ use std::fmt::Display;
 pub mod lexer;
 pub mod text;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub enum Error {
     UnexpectedChar(char),

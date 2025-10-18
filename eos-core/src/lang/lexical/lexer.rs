@@ -17,7 +17,14 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> crate::lang::Result<Token> {
-        let position = self.text.position();
+        let mut position = self.text.position();
+
+        if let Some(c) = self.text.look_ahead()
+            && c.is_whitespace()
+        {
+            self.text.shift();
+            position = self.text.position();
+        }
 
         if let Some(c) = self.text.look_ahead() {
             match c {

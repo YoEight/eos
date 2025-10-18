@@ -20,6 +20,12 @@ pub struct Position {
     pub column: usize,
 }
 
+impl Position {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
+
 impl Default for Position {
     fn default() -> Self {
         Self { line: 1, column: 1 }
