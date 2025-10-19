@@ -30,6 +30,14 @@ impl Nursery {
         panic!("nursery: no string at position {pos}")
     }
 
+    pub fn get_unique_id_or_panic(&self, pos: Position) -> u64 {
+        if let Some(h) = self.locs.get(&pos) {
+            return *h;
+        }
+
+        panic!("nursery: no string at position {pos}")
+    }
+
     fn hash_expr(&mut self, expr: &String) -> u64 {
         self.hasher_builder.hash_one(expr)
     }

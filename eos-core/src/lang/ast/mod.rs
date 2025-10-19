@@ -2,11 +2,20 @@ use crate::lang::Position;
 
 mod parser;
 
+#[cfg(test)]
+mod tests;
+
 pub use parser::Error;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Attrs {
     pub position: Position,
+}
+
+impl Attrs {
+    pub fn new(position: Position) -> Self {
+        Self { position }
+    }
 }
 
 #[derive(Debug)]
@@ -32,6 +41,12 @@ pub enum Operator {
 pub struct Var {
     pub id: u64,
     pub exponent: u64,
+}
+
+impl Var {
+    pub fn new(id: u64) -> Self {
+        Self { id, exponent: 1 }
+    }
 }
 
 #[derive(Debug)]

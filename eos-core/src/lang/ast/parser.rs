@@ -1,4 +1,4 @@
-use crate::lang::ast::{Ast, Attrs, Node};
+use crate::lang::ast::{Ast, Attrs, Node, Operator, Var};
 use crate::lang::lexical::lexer::Lexer;
 use crate::lang::nursery::Nursery;
 use crate::lang::token::{Sym, Token};
@@ -8,6 +8,8 @@ use std::fmt::{Display, Formatter};
 pub enum Error {
     UnexpectedEOF,
     UnexpectedSymbol(String),
+    Expected(String, String),
+    ExpectedSymbol(Sym, String),
 }
 
 impl Display for Error {
@@ -15,6 +17,10 @@ impl Display for Error {
         match self {
             Self::UnexpectedEOF => write!(f, "unexpected end of file"),
             Self::UnexpectedSymbol(sym) => write!(f, "unexpected symbol '{sym}'"),
+            Self::Expected(expected, got) => write!(f, "expected '{expected}' but got '{got}'"),
+            Self::ExpectedSymbol(expected, got) => {
+                write!(f, "expected a '{expected}' but got '{got}'")
+            }
         }
     }
 }
@@ -44,7 +50,10 @@ impl<'a> Parser<'a> {
     }
 
     fn shift(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Token> {
-        self.token.take();
+        if let Some(token) = self.token.take() {
+            return Ok(token);
+        }
+
         self.lexer.next_token(nursery)
     }
 
@@ -55,7 +64,7 @@ impl<'a> Parser<'a> {
             bail!(token.position, Error::UnexpectedEOF);
         }
 
-        if token.sym == Sym::Number || token.sym == Sym::Symbol {
+        if token.sym == Sym::Number || token.sym == Sym::Variable {
             return self.parse_binary(nursery, 0);
         }
 
@@ -77,18 +86,89 @@ impl<'a> Parser<'a> {
         let mut lhs = if nursery.get_string_or_panic(token.position) == "(" {
             self.parse_group(nursery)?
         } else {
-            todo!()
+            self.parse_primary(nursery)?
         };
 
-        todo!()
+        loop {
+            let token = self.look_ahead(nursery)?;
+
+            if token.sym == Sym::EOF {
+                return Ok(lhs);
+            }
+
+            let token_str = nursery.get_string_or_panic(token.position);
+
+            if token.sym != Sym::Operator {
+                bail!(
+                    token.position,
+                    Error::ExpectedSymbol(Sym::Operator, token_str.to_string()),
+                );
+            }
+
+            let op = into_operator(token_str);
+            let (lhs_bind, rhs_bind) = binding_pow(into_operator(token_str));
+
+            if lhs_bind < min_bind {
+                break;
+            }
+
+            self.shift(nursery)?;
+            let rhs = self.parse_binary(nursery, rhs_bind)?;
+
+            lhs = Ast {
+                attrs: Attrs::new(lhs.attrs.position),
+                node: Node::Binary(op, Box::new(lhs), Box::new(rhs)),
+            };
+        }
+
+        Ok(lhs)
     }
 
     fn parse_group(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Ast> {
-        todo!()
+        let open_token = self.shift(nursery)?;
+        let token_str = nursery.get_string_or_panic(open_token.position);
+
+        if token_str != "(" {
+            bail!(
+                open_token.position,
+                Error::Expected("(".to_string(), token_str.to_string())
+            );
+        }
+
+        let ast = self.parse_ast(nursery)?;
+        let token = self.shift(nursery)?;
+        let token_str = nursery.get_string_or_panic(token.position);
+
+        if token_str != ")" {
+            bail!(
+                token.position,
+                Error::Expected(")".to_string(), token_str.to_string())
+            );
+        }
+
+        Ok(Ast {
+            attrs: Attrs::new(open_token.position),
+            node: Node::Group(Box::new(ast)),
+        })
     }
 
-    fn parse_unary(&mut self, nursary: &mut Nursery) -> crate::lang::Result<Ast> {
-        todo!()
+    fn parse_unary(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Ast> {
+        let token = self.shift(nursery)?;
+        let token_str = nursery.get_string_or_panic(token.position);
+
+        if token_str != "-" {
+            bail!(
+                token.position,
+                Error::Expected("-".to_string(), token_str.to_string())
+            );
+        }
+
+        let ast = self.parse_ast(nursery)?;
+
+        Ok(Ast {
+            attrs: Attrs::new(token.position),
+            node: Node::Unary(Operator::Sub, Box::new(ast)),
+        })
     }
 
     fn parse_primary(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Ast> {
@@ -99,14 +179,44 @@ impl<'a> Parser<'a> {
                 .get_string_or_panic(token.position)
                 .parse::<u64>()
                 .expect("valid number format");
+
             return Ok(Ast {
-                attrs: Attrs {
-                    position: token.position,
-                },
+                attrs: Attrs::new(token.position),
                 node: Node::Number(value),
             });
         } else if token.sym == Sym::Variable {
-            todo!()
+            let id = nursery.get_unique_id_or_panic(token.position);
+
+            return Ok(Ast {
+                attrs: Attrs::new(token.position),
+                node: Node::Var(Var::new(id)),
+            });
         }
+
+        bail!(
+            token.position,
+            Error::UnexpectedSymbol(nursery.get_string_or_panic(token.position).to_string())
+        );
+    }
+}
+
+fn binding_pow(op: Operator) -> (u64, u64) {
+    match op {
+        Operator::Add | Operator::Sub => (10, 10),
+        Operator::Mul | Operator::Div => (20, 20),
+        Operator::Exp => (30, 29),
+        Operator::Eq => (1, 1),
+    }
+}
+
+fn into_operator(op: &str) -> Operator {
+    match op {
+        "+" => Operator::Add,
+        "-" => Operator::Sub,
+        "*" => Operator::Mul,
+        "/" => Operator::Div,
+        "^" => Operator::Exp,
+        "=" => Operator::Eq,
+        _ => unreachable!(),
     }
 }
