@@ -1,4 +1,4 @@
-use crate::lang::{Position, lexical};
+use crate::lang::{ast, lexical, Position};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -18,12 +18,14 @@ impl Display for Error {
 #[derive(Debug)]
 pub enum ErrorKind {
     Lexer(lexical::Error),
+    Parser(ast::Error),
 }
 
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Lexer(e) => write!(f, "lexer: {e}"),
+            Self::Parser(e) => write!(f, "parser: {e}"),
         }
     }
 }
@@ -31,5 +33,11 @@ impl Display for ErrorKind {
 impl From<lexical::Error> for ErrorKind {
     fn from(value: lexical::Error) -> Self {
         Self::Lexer(value)
+    }
+}
+
+impl From<ast::Error> for ErrorKind {
+    fn from(value: ast::Error) -> Self {
+        Self::Parser(value)
     }
 }

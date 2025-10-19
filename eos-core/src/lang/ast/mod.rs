@@ -1,5 +1,13 @@
-#[derive(Debug)]
-pub struct Attrs {}
+use crate::lang::Position;
+
+mod parser;
+
+pub use parser::Error;
+
+#[derive(Debug, Copy, Clone)]
+pub struct Attrs {
+    pub position: Position,
+}
 
 #[derive(Debug)]
 pub enum Node {
