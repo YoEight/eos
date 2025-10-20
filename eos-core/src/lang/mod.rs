@@ -9,6 +9,8 @@ mod lexical;
 mod nursery;
 mod token;
 
+pub use ast::{Ast, Binary, Node, Unary, Var};
+
 pub mod private {
     pub use std::result::Result::Err;
 }
