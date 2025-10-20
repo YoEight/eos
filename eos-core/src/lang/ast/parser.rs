@@ -1,4 +1,4 @@
-use crate::lang::ast::{Ast, Attrs, Node, Operator, Var};
+use crate::lang::ast::{Ast, Attrs, Binary, Node, Operator, Unary, Var};
 use crate::lang::lexical::lexer::Lexer;
 use crate::lang::nursery::Nursery;
 use crate::lang::token::{Sym, Token};
@@ -117,7 +117,11 @@ impl<'a> Parser<'a> {
 
             lhs = Ast {
                 attrs: Attrs::new(lhs.attrs.position),
-                node: Node::Binary(op, Box::new(lhs), Box::new(rhs)),
+                node: Node::Binary(Binary {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }),
             };
         }
 
@@ -167,7 +171,10 @@ impl<'a> Parser<'a> {
 
         Ok(Ast {
             attrs: Attrs::new(token.position),
-            node: Node::Unary(Operator::Sub, Box::new(ast)),
+            node: Node::Unary(Unary {
+                op: Operator::Sub,
+                rhs: Box::new(ast),
+            }),
         })
     }
 

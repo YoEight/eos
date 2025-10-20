@@ -22,9 +22,22 @@ impl Attrs {
 pub enum Node {
     Number(u64),
     Var(Var),
-    Binary(Operator, Box<Ast>, Box<Ast>),
+    Binary(Binary),
     Group(Box<Ast>),
-    Unary(Operator, Box<Ast>),
+    Unary(Unary),
+}
+
+#[derive(Debug)]
+pub struct Binary {
+    pub op: Operator,
+    pub lhs: Box<Ast>,
+    pub rhs: Box<Ast>,
+}
+
+#[derive(Debug)]
+pub struct Unary {
+    pub op: Operator,
+    pub rhs: Box<Ast>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -53,4 +66,34 @@ impl Var {
 pub struct Ast {
     pub attrs: Attrs,
     pub node: Node,
+}
+
+impl Ast {
+    pub fn as_number(&self) -> u64 {
+        match &self.node {
+            Node::Number(n) => *n,
+            _ => panic!("not a number"),
+        }
+    }
+
+    pub fn as_var(&self) -> Var {
+        match &self.node {
+            Node::Var(v) => *v,
+            _ => panic!("not a var"),
+        }
+    }
+
+    pub fn as_binary(&self) -> &Binary {
+        match &self.node {
+            Node::Binary(b) => b,
+            _ => panic!("not a binary"),
+        }
+    }
+
+    pub fn as_unary(&self) -> &Unary {
+        match &self.node {
+            Node::Unary(u) => u,
+            _ => panic!("not a unary"),
+        }
+    }
 }
