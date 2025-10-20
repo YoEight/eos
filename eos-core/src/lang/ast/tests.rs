@@ -7,7 +7,7 @@ fn test_parser_sum() -> crate::lang::Result<()> {
     let mut nursery = Nursery::default();
     let mut parser = Parser::new("1 + 2 ^ 3 + 4");
 
-    let ast = parser.parse_ast(&mut nursery)?;
+    let ast = parser.parse_top_level_ast(&mut nursery)?;
     let binary = ast.as_binary();
 
     assert_eq!(binary.op, Operator::Add);

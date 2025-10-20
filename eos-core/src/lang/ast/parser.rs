@@ -7,6 +7,7 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug)]
 pub enum Error {
     UnexpectedEOF,
+    ExpectedEOF,
     UnexpectedSymbol(String),
     Expected(String, String),
     ExpectedSymbol(Sym, String),
@@ -16,6 +17,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnexpectedEOF => write!(f, "unexpected end of file"),
+            Self::ExpectedEOF => write!(f, "expected end of file"),
             Self::UnexpectedSymbol(sym) => write!(f, "unexpected symbol '{sym}'"),
             Self::Expected(expected, got) => write!(f, "expected '{expected}' but got '{got}'"),
             Self::ExpectedSymbol(expected, got) => {
@@ -55,6 +57,17 @@ impl<'a> Parser<'a> {
         }
 
         self.lexer.next_token(nursery)
+    }
+
+    pub fn parse_top_level_ast(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Ast> {
+        let ast = self.parse_ast(nursery)?;
+        let token = self.shift(nursery)?;
+
+        if token.sym != Sym::EOF {
+            bail!(token.position, Error::UnexpectedEOF);
+        }
+
+        Ok(ast)
     }
 
     pub fn parse_ast(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Ast> {
