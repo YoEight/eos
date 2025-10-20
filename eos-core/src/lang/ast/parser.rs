@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
             }
 
             let op = into_operator(token_str);
-            let (lhs_bind, rhs_bind) = binding_pow(into_operator(token_str));
+            let (lhs_bind, rhs_bind) = binding_pow(op);
 
             if lhs_bind < min_bind {
                 break;
