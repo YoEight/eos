@@ -1,3 +1,4 @@
+use crate::lang::ast::Var;
 use crate::lang::Position;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher};
@@ -28,6 +29,14 @@ impl Nursery {
         }
 
         panic!("nursery: no string at position {pos}")
+    }
+
+    pub fn get_var_string_or_panic(&self, var: &Var) -> &str {
+        if let Some(name) = self.names.get(&var.id) {
+            return name.as_str();
+        }
+
+        panic!("nursery: no string attached to that id")
     }
 
     pub fn get_unique_id_or_panic(&self, pos: Position) -> u64 {
