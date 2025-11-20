@@ -34,6 +34,18 @@ pub struct Binary {
     pub rhs: Box<Ast>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Primary {
+    pub attrs: Attrs,
+    pub kind: PrimaryKind,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum PrimaryKind {
+    Var(Var),
+    Number(u64),
+}
+
 #[derive(Debug)]
 pub struct Unary {
     pub op: Operator,
@@ -60,6 +72,11 @@ impl Var {
     pub fn new(id: u64) -> Self {
         Self { id, exponent: 1 }
     }
+}
+
+pub struct Additive<A> {
+    is_add: bool,
+    inner: A,
 }
 
 #[derive(Debug)]
@@ -94,6 +111,52 @@ impl Ast {
         match &self.node {
             Node::Unary(u) => u,
             _ => panic!("not a unary"),
+        }
+    }
+
+    pub fn is_group(&self) -> bool {
+        matches!(self.node, Node::Group(_))
+    }
+
+    pub fn collect_additive_terms(&self) -> Vec<Additive<&Ast>> {
+        let mut result = Vec::new();
+
+        if let Node::Binary(binary) = &self.node
+            && matches!(binary.op, Operator::Add | Operator::Sub)
+        {
+            result.extend(binary.lhs.collect_additive_terms());
+            let mut rhs = binary.rhs.collect_additive_terms();
+
+            if binary.op == Operator::Sub {
+                for term in rhs.iter_mut() {
+                    term.is_add = !term.is_add;
+                }
+            }
+
+            result.extend(rhs);
+        } else {
+            result.push(Additive {
+                is_add: true,
+                inner: self,
+            });
+        }
+
+        result
+    }
+
+    pub fn as_primary(&self) -> Option<Primary> {
+        match &self.node {
+            Node::Number(n) => Some(Primary {
+                attrs: self.attrs,
+                kind: PrimaryKind::Number(*n),
+            }),
+
+            Node::Var(v) => Some(Primary {
+                attrs: self.attrs,
+                kind: PrimaryKind::Var(*v),
+            }),
+
+            _ => None,
         }
     }
 }
