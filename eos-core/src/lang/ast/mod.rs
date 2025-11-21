@@ -18,7 +18,7 @@ impl Attrs {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Node {
     Number(u64),
     Var(Var),
@@ -27,7 +27,16 @@ pub enum Node {
     Unary(Unary),
 }
 
-#[derive(Debug)]
+impl From<Primary> for Node {
+    fn from(value: Primary) -> Self {
+        match value.kind {
+            PrimaryKind::Number(n) => Node::Number(n),
+            PrimaryKind::Var(v) => Node::Var(v),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Binary {
     pub op: Operator,
     pub lhs: Box<Ast>,
@@ -46,7 +55,7 @@ pub enum PrimaryKind {
     Number(u64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Unary {
     pub op: Operator,
     pub rhs: Box<Ast>,
@@ -75,14 +84,26 @@ impl Var {
 }
 
 pub struct Additive<A> {
-    is_add: bool,
-    inner: A,
+    pub is_add: bool,
+    pub inner: A,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ast {
     pub attrs: Attrs,
     pub node: Node,
+}
+
+impl From<Primary> for Ast {
+    fn from(value: Primary) -> Self {
+        Self {
+            attrs: value.attrs,
+            node: match value.kind {
+                PrimaryKind::Number(n) => Node::Number(n),
+                PrimaryKind::Var(v) => Node::Var(v),
+            },
+        }
+    }
 }
 
 impl Ast {
@@ -125,27 +146,32 @@ impl Ast {
         matches!(self.node, Node::Group(_))
     }
 
-    pub fn collect_additive_terms(&self) -> Vec<Additive<&Ast>> {
+    pub fn collect_additive_terms(self) -> Vec<Additive<Ast>> {
         let mut result = Vec::new();
 
-        if let Node::Binary(binary) = &self.node
-            && matches!(binary.op, Operator::Add | Operator::Sub)
-        {
-            result.extend(binary.lhs.collect_additive_terms());
-            let mut rhs = binary.rhs.collect_additive_terms();
+        match self.node {
+            Node::Binary(binary) if matches!(binary.op, Operator::Add | Operator::Sub) => {
+                result.extend(binary.lhs.collect_additive_terms());
+                let mut rhs = binary.rhs.collect_additive_terms();
 
-            if binary.op == Operator::Sub {
-                for term in rhs.iter_mut() {
-                    term.is_add = !term.is_add;
+                if binary.op == Operator::Sub {
+                    for term in rhs.iter_mut() {
+                        term.is_add = !term.is_add;
+                    }
                 }
+
+                result.extend(rhs);
             }
 
-            result.extend(rhs);
-        } else {
-            result.push(Additive {
-                is_add: true,
-                inner: self,
-            });
+            node => {
+                result.push(Additive {
+                    is_add: true,
+                    inner: Ast {
+                        attrs: self.attrs,
+                        node,
+                    },
+                });
+            }
         }
 
         result

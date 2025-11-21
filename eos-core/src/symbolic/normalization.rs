@@ -48,5 +48,54 @@ fn normalize_unary(position: Position, unary: Unary) -> Unary {
 }
 
 fn distribute_mul_over_additive(primary: Primary, target: Ast) -> Node {
-    todo!()
+    let additives = target.collect_additive_terms();
+    let mut agg: Node = primary.into();
+
+    for (idx, additive) in additives.into_iter().enumerate() {
+        let op = if additive.is_add {
+            Operator::Add
+        } else {
+            Operator::Sub
+        };
+
+        agg = if idx == 0 {
+            if op == Operator::Sub {
+                Node::Unary(Unary {
+                    op: Operator::Sub,
+                    rhs: Box::new(Ast {
+                        attrs: primary.attrs,
+                        node: Node::Binary(Binary {
+                            op,
+                            lhs: Box::new(primary.into()),
+                            rhs: Box::new(additive.inner),
+                        }),
+                    }),
+                })
+            } else {
+                Node::Binary(Binary {
+                    op: Operator::Mul,
+                    lhs: Box::new(primary.into()),
+                    rhs: Box::new(additive.inner),
+                })
+            }
+        } else {
+            Node::Binary(Binary {
+                op,
+                lhs: Box::new(Ast {
+                    attrs: primary.attrs,
+                    node: agg,
+                }),
+                rhs: Box::new(Ast {
+                    attrs: primary.attrs,
+                    node: Node::Binary(Binary {
+                        op: Operator::Mul,
+                        lhs: Box::new(primary.into()),
+                        rhs: Box::new(additive.inner),
+                    }),
+                }),
+            })
+        }
+    }
+
+    agg
 }
