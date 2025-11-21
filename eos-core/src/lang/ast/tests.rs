@@ -26,6 +26,21 @@ fn test_parser_sum() -> crate::lang::Result<()> {
 }
 
 #[test]
+fn test_parser_unary() -> crate::lang::Result<()> {
+    let mut nursery = Nursery::default();
+    let mut parser = Parser::new("-1");
+
+    let ast = parser.parse_top_level_ast(&mut nursery)?;
+
+    let unary = ast.as_unary();
+
+    assert_eq!(unary.op, Operator::Sub);
+    assert_eq!(unary.rhs.as_number(), 1);
+
+    Ok(())
+}
+
+#[test]
 fn test_parser_group() -> crate::lang::Result<()> {
     let mut nursery = Nursery::default();
     let mut parser = Parser::new("(1 + 2)");
@@ -96,6 +111,20 @@ fn test_collect_additive_terms_with_group() -> crate::lang::Result<()> {
 
     assert!(!xs.is_empty());
     assert_eq!(xs.len(), 2);
+
+    Ok(())
+}
+
+#[test]
+fn test_collect_additive_terms_with_group_sub() -> crate::lang::Result<()> {
+    let mut nursery = Nursery::default();
+    let mut parser = Parser::new("1 - (2 ^ 3 + 4)");
+    let ast = parser.parse_top_level_ast(&mut nursery)?;
+    let xs = ast.collect_additive_terms();
+
+    assert!(!xs.is_empty());
+    assert_eq!(xs.len(), 2);
+    assert!(!xs[1].is_add);
 
     Ok(())
 }
