@@ -105,7 +105,9 @@ impl<'a> Parser<'a> {
         loop {
             let token = self.look_ahead(nursery)?;
 
-            if token.sym == Sym::EOF {
+            if token.sym == Sym::EOF
+                || token.sym == Sym::Symbol && nursery.get_string_or_panic(token.position) == ")"
+            {
                 return Ok(lhs);
             }
 

@@ -114,6 +114,13 @@ impl Ast {
         }
     }
 
+    pub fn as_group(&self) -> &Ast {
+        match &self.node {
+            Node::Group(g) => g,
+            _ => panic!("not a group"),
+        }
+    }
+
     pub fn is_group(&self) -> bool {
         matches!(self.node, Node::Group(_))
     }
