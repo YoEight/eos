@@ -39,14 +39,18 @@ pub fn normalize_binary(position: Position, mut binary: Binary) -> Node {
     }
 }
 
-fn normalize_group(position: Position, group: Box<Ast>) -> Box<Ast> {
-    group
+fn normalize_group(position: Position, mut group: Box<Ast>) -> Box<Ast> {
+    Box::new(normalize(*group))
 }
 
 fn normalize_unary(position: Position, unary: Unary) -> Unary {
-    todo!()
+    Unary {
+        op: unary.op,
+        rhs: Box::new(normalize(*unary.rhs)),
+    }
 }
 
+/// TODO - That implementation is not correct because distribution only happens when dealing with a group
 fn distribute_mul_over_additive(primary: Primary, target: Ast) -> Node {
     let additives = target.collect_additive_terms();
     let mut agg: Node = primary.into();
