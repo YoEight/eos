@@ -3,10 +3,10 @@ use std::fmt::Display;
 #[macro_use]
 mod macros;
 
-mod ast;
+pub mod ast;
 mod error;
 mod lexical;
-mod nursery;
+pub mod nursery;
 mod token;
 
 pub use ast::{Ast, Binary, Node, Operator, Primary, Unary};

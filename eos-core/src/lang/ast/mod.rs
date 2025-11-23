@@ -1,10 +1,12 @@
 use crate::lang::Position;
+use std::fmt::{Display, Formatter};
 
-mod parser;
+pub mod parser;
 
 #[cfg(test)]
 mod tests;
 
+use crate::lang::nursery::Nursery;
 pub use parser::Error;
 
 #[derive(Debug, Copy, Clone)]
@@ -71,6 +73,19 @@ pub enum Operator {
     Eq,
 }
 
+impl Display for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operator::Add => write!(f, "+"),
+            Operator::Sub => write!(f, "-"),
+            Operator::Mul => write!(f, "*"),
+            Operator::Div => write!(f, "/"),
+            Operator::Exp => write!(f, "^"),
+            Operator::Eq => write!(f, "="),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Var {
     pub id: u64,
@@ -81,11 +96,6 @@ impl Var {
     pub fn new(id: u64) -> Self {
         Self { id, exponent: 1 }
     }
-}
-
-pub struct Additive<A> {
-    pub is_add: bool,
-    pub inner: A,
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +117,63 @@ impl From<Primary> for Ast {
 }
 
 impl Ast {
+    pub fn new(attrs: Attrs, node: Node) -> Self {
+        Self { attrs, node }
+    }
+
+    pub fn number(attrs: Attrs, n: u64) -> Self {
+        Self {
+            attrs,
+            node: Node::Number(n),
+        }
+    }
+
+    pub fn pretty_print(&self, nursery: &Nursery) -> String {
+        let mut result = String::new();
+        self.pretty_print_internal(nursery, &mut result);
+
+        result
+    }
+
+    fn pretty_print_internal(&self, nursery: &Nursery, result: &mut String) {
+        fn pretty_print_node(node: &Node, nursery: &Nursery, result: &mut String) {
+            match node {
+                Node::Number(n) => result.push_str(&n.to_string()),
+
+                Node::Var(v) => match v.exponent {
+                    0 => result.push_str("1"),
+                    1 => result.push_str(nursery.get_var_string_or_panic(v)),
+                    _ => result.push_str(&format!(
+                        "{}^{}",
+                        nursery.get_var_string_or_panic(v),
+                        v.exponent
+                    )),
+                },
+
+                Node::Binary(binary) => {
+                    binary.lhs.pretty_print_internal(nursery, result);
+                    result.push_str(" ");
+                    result.push_str(&binary.op.to_string());
+                    result.push_str(" ");
+                    binary.rhs.pretty_print_internal(nursery, result);
+                }
+
+                Node::Group(g) => {
+                    result.push_str("(");
+                    g.pretty_print_internal(nursery, result);
+                    result.push_str(")");
+                }
+
+                Node::Unary(unary) => {
+                    result.push_str(&unary.op.to_string());
+                    unary.rhs.pretty_print_internal(nursery, result);
+                }
+            }
+        }
+
+        pretty_print_node(&self.node, nursery, result);
+    }
+
     pub fn as_number(&self) -> u64 {
         match &self.node {
             Node::Number(n) => *n,
@@ -146,30 +213,53 @@ impl Ast {
         matches!(self.node, Node::Group(_))
     }
 
-    pub fn collect_additive_terms(self) -> Vec<Additive<Ast>> {
+    pub fn distribute(self, op: Operator, primary: Primary) -> Ast {
+        match self.node {
+            Node::Binary(binary) => Ast {
+                attrs: self.attrs,
+                node: Node::Binary(Binary {
+                    op: binary.op,
+                    lhs: Box::new(Ast {
+                        attrs: self.attrs,
+                        node: Node::Binary(Binary {
+                            op,
+                            lhs: Box::new(primary.into()),
+                            rhs: binary.lhs,
+                        }),
+                    }),
+                    rhs: binary.rhs,
+                }),
+            },
+
+            node => Ast {
+                attrs: self.attrs,
+                node: Node::Binary(Binary {
+                    op,
+                    lhs: Box::new(primary.into()),
+                    rhs: Box::new(Ast {
+                        attrs: self.attrs,
+                        node,
+                    }),
+                }),
+            },
+        }
+    }
+
+    pub fn collect_additive_terms(self) -> Vec<Ast> {
         let mut result = Vec::new();
 
         match self.node {
             Node::Binary(binary) if matches!(binary.op, Operator::Add | Operator::Sub) => {
                 result.extend(binary.lhs.collect_additive_terms());
-                let mut rhs = binary.rhs.collect_additive_terms();
-
-                if binary.op == Operator::Sub {
-                    for term in rhs.iter_mut() {
-                        term.is_add = !term.is_add;
-                    }
-                }
-
-                result.extend(rhs);
+                result.extend(binary.rhs.collect_additive_terms());
             }
 
+            Node::Group(group) => result = group.collect_additive_terms(),
+
             node => {
-                result.push(Additive {
-                    is_add: true,
-                    inner: Ast {
-                        attrs: self.attrs,
-                        node,
-                    },
+                result.push(Ast {
+                    attrs: self.attrs,
+                    node,
                 });
             }
         }

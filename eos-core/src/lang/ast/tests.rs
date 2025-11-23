@@ -11,16 +11,20 @@ fn test_parser_sum() -> crate::lang::Result<()> {
     let binary = ast.as_binary();
 
     assert_eq!(binary.op, Operator::Add);
-    assert_eq!(binary.lhs.as_number(), 1);
-
-    let binary = binary.rhs.as_binary();
+    // 1 + 2 ^ 3
     let lhs = binary.lhs.as_binary();
+    // 4
+    let rhs = binary.rhs.as_number();
+    assert_eq!(rhs, 4);
 
-    assert_eq!(lhs.lhs.as_number(), 2);
-    assert_eq!(lhs.op, Operator::Exp);
-    assert_eq!(lhs.rhs.as_number(), 3);
+    assert_eq!(lhs.op, Operator::Add);
+    assert_eq!(lhs.lhs.as_number(), 1);
 
-    assert_eq!(binary.rhs.as_number(), 4);
+    // 2 ^ 3
+    let rhs = lhs.rhs.as_binary();
+    assert_eq!(rhs.op, Operator::Exp);
+    assert_eq!(rhs.lhs.as_number(), 2);
+    assert_eq!(rhs.rhs.as_number(), 3);
 
     Ok(())
 }
@@ -64,67 +68,41 @@ fn test_parser_sum_var() -> crate::lang::Result<()> {
     let binary = ast.as_binary();
 
     assert_eq!(binary.op, Operator::Add);
-    assert_eq!(binary.lhs.as_number(), 1);
-
-    let binary = binary.rhs.as_binary();
+    // 1 + x ^ 3
     let lhs = binary.lhs.as_binary();
-    let var = lhs.lhs.as_var();
+    // 4
+    let rhs = binary.rhs.as_number();
+    assert_eq!(rhs, 4);
 
-    assert_eq!(nursery.get_var_string_or_panic(&var), "x");
-    assert_eq!(lhs.op, Operator::Exp);
-    assert_eq!(lhs.rhs.as_number(), 3);
+    assert_eq!(lhs.op, Operator::Add);
+    assert_eq!(lhs.lhs.as_number(), 1);
 
-    assert_eq!(binary.rhs.as_number(), 4);
+    // x ^ 3
+    let rhs = lhs.rhs.as_binary();
+    assert_eq!(rhs.op, Operator::Exp);
 
-    Ok(())
-}
-
-#[test]
-fn test_collect_additive_terms_all_adds() -> crate::lang::Result<()> {
-    let mut nursery = Nursery::default();
-    let mut parser = Parser::new("1 + 2 ^ 3 + 4");
-    let ast = parser.parse_top_level_ast(&mut nursery)?;
-    let xs = ast.collect_additive_terms();
-
-    assert!(!xs.is_empty());
-    assert_eq!(xs.len(), 3);
-
-    assert!(xs[0].is_add);
-    assert_eq!(xs[0].inner.as_number(), 1);
-
-    assert!(xs[1].is_add);
-    assert_eq!(xs[1].inner.as_binary().lhs.as_number(), 2);
-    assert_eq!(xs[1].inner.as_binary().rhs.as_number(), 3);
-
-    assert!(xs[2].is_add);
-    assert_eq!(xs[2].inner.as_number(), 4);
+    assert_eq!(nursery.get_var_string_or_panic(&rhs.lhs.as_var()), "x");
+    assert_eq!(rhs.rhs.as_number(), 3);
 
     Ok(())
 }
 
 #[test]
-fn test_collect_additive_terms_with_group() -> crate::lang::Result<()> {
+fn test_parser_sum_with_sub() -> crate::lang::Result<()> {
     let mut nursery = Nursery::default();
-    let mut parser = Parser::new("1 + (2 ^ 3 + 4)");
+    let mut parser = Parser::new("1 - 2 + 3");
+
     let ast = parser.parse_top_level_ast(&mut nursery)?;
-    let xs = ast.collect_additive_terms();
+    let binary = ast.as_binary();
 
-    assert!(!xs.is_empty());
-    assert_eq!(xs.len(), 2);
+    assert_eq!(binary.op, Operator::Add);
 
-    Ok(())
-}
+    let lhs_binary = binary.lhs.as_binary();
+    assert_eq!(lhs_binary.lhs.as_number(), 1);
+    assert_eq!(lhs_binary.rhs.as_number(), 2);
+    assert_eq!(lhs_binary.op, Operator::Sub);
 
-#[test]
-fn test_collect_additive_terms_with_group_sub() -> crate::lang::Result<()> {
-    let mut nursery = Nursery::default();
-    let mut parser = Parser::new("1 - (2 ^ 3 + 4)");
-    let ast = parser.parse_top_level_ast(&mut nursery)?;
-    let xs = ast.collect_additive_terms();
-
-    assert!(!xs.is_empty());
-    assert_eq!(xs.len(), 2);
-    assert!(!xs[1].is_add);
+    assert_eq!(binary.rhs.as_number(), 3);
 
     Ok(())
 }

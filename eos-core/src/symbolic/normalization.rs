@@ -30,16 +30,20 @@ pub fn normalize_binary(position: Position, mut binary: Binary) -> Node {
         return Node::Binary(binary);
     }
 
-    if let Some(lhs) = binary.lhs.as_primary() {
+    if let Some(lhs) = binary.lhs.as_primary()
+        && binary.rhs.is_group()
+    {
         distribute_mul_over_additive(lhs, *binary.rhs)
-    } else if let Some(rhs) = binary.rhs.as_primary() {
+    } else if let Some(rhs) = binary.rhs.as_primary()
+        && binary.lhs.is_group()
+    {
         distribute_mul_over_additive(rhs, *binary.lhs)
     } else {
         Node::Binary(binary)
     }
 }
 
-fn normalize_group(position: Position, mut group: Box<Ast>) -> Box<Ast> {
+fn normalize_group(position: Position, group: Box<Ast>) -> Box<Ast> {
     Box::new(normalize(*group))
 }
 
@@ -50,55 +54,83 @@ fn normalize_unary(position: Position, unary: Unary) -> Unary {
     }
 }
 
-/// TODO - That implementation is not correct because distribution only happens when dealing with a group
 fn distribute_mul_over_additive(primary: Primary, target: Ast) -> Node {
-    let additives = target.collect_additive_terms();
+    let attrs = target.attrs;
+
+    struct Additive<A> {
+        is_add: bool,
+        inner: A,
+    }
+
+    fn collect(nodes: &mut Vec<Additive<Node>>, is_add: bool, node: Node) {
+        match node {
+            Node::Binary(binary) => match binary.op {
+                Operator::Add => {
+                    collect(nodes, is_add, binary.lhs.node);
+                    collect(nodes, is_add, binary.rhs.node);
+                }
+
+                Operator::Sub => {
+                    collect(nodes, is_add, binary.lhs.node);
+                    collect(nodes, false, binary.rhs.node);
+                }
+
+                Operator::Eq => panic!("cannot distribute over '=' operator"),
+
+                _ => nodes.push(Additive {
+                    is_add,
+                    inner: Node::Binary(binary),
+                }),
+            },
+
+            Node::Group(group) => collect(nodes, is_add, group.node),
+
+            Node::Unary(unary) => collect(nodes, unary.op != Operator::Sub, unary.rhs.node),
+
+            node => nodes.push(Additive {
+                is_add,
+                inner: node,
+            }),
+        }
+    }
+
+    let mut additives = Vec::new();
+    collect(&mut additives, true, target.node);
+
     let mut agg: Node = primary.into();
 
     for (idx, additive) in additives.into_iter().enumerate() {
-        let op = if additive.is_add {
-            Operator::Add
-        } else {
-            Operator::Sub
-        };
-
         agg = if idx == 0 {
-            if op == Operator::Sub {
-                Node::Unary(Unary {
-                    op: Operator::Sub,
-                    rhs: Box::new(Ast {
-                        attrs: primary.attrs,
-                        node: Node::Binary(Binary {
-                            op,
-                            lhs: Box::new(primary.into()),
-                            rhs: Box::new(additive.inner),
-                        }),
-                    }),
-                })
+            if additive.is_add {
+                Ast::new(attrs, additive.inner)
+                    .distribute(Operator::Mul, primary)
+                    .node
             } else {
                 Node::Binary(Binary {
                     op: Operator::Mul,
-                    lhs: Box::new(primary.into()),
-                    rhs: Box::new(additive.inner),
+                    lhs: Box::new(Ast {
+                        attrs,
+                        node: Node::Unary(Unary {
+                            op: Operator::Sub,
+                            rhs: Box::new(Ast::number(attrs, 1)),
+                        }),
+                    }),
+                    rhs: Box::new(
+                        Ast::new(attrs, additive.inner).distribute(Operator::Mul, primary),
+                    ),
                 })
             }
         } else {
             Node::Binary(Binary {
-                op,
-                lhs: Box::new(Ast {
-                    attrs: primary.attrs,
-                    node: agg,
-                }),
-                rhs: Box::new(Ast {
-                    attrs: primary.attrs,
-                    node: Node::Binary(Binary {
-                        op: Operator::Mul,
-                        lhs: Box::new(primary.into()),
-                        rhs: Box::new(additive.inner),
-                    }),
-                }),
+                op: if additive.is_add {
+                    Operator::Add
+                } else {
+                    Operator::Sub
+                },
+                lhs: Box::new(Ast::new(attrs, agg)),
+                rhs: Box::new(Ast::new(attrs, additive.inner).distribute(Operator::Mul, primary)),
             })
-        }
+        };
     }
 
     agg

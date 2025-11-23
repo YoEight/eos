@@ -224,8 +224,8 @@ impl<'a> Parser<'a> {
 
 fn binding_pow(op: Operator) -> (u64, u64) {
     match op {
-        Operator::Add | Operator::Sub => (10, 10),
-        Operator::Mul | Operator::Div => (20, 20),
+        Operator::Add | Operator::Sub => (10, 11),
+        Operator::Mul | Operator::Div => (20, 21),
         Operator::Exp => (30, 29),
         Operator::Eq => (1, 1),
     }
