@@ -1,4 +1,3 @@
-use crate::lang::Position;
 use std::fmt::{Display, Formatter};
 
 pub mod parser;
@@ -6,61 +5,54 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-use crate::lang::nursery::Nursery;
 pub use parser::Error;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Attrs {
-    pub position: Position,
+    pub position: usize,
 }
 
 impl Attrs {
-    pub fn new(position: Position) -> Self {
+    pub fn new(position: usize) -> Self {
         Self { position }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Node {
+pub enum Ast<'a> {
     Number(u64),
-    Var(Var),
-    Binary(Binary),
-    Group(Box<Ast>),
-    Unary(Unary),
+    Var(Var<'a>),
+    Binary(Binary<'a>),
+    Group(Box<Ast<'a>>),
+    Unary(Unary<'a>),
 }
 
-impl From<Primary> for Node {
-    fn from(value: Primary) -> Self {
-        match value.kind {
-            PrimaryKind::Number(n) => Node::Number(n),
-            PrimaryKind::Var(v) => Node::Var(v),
+impl<'a> From<Primary<'a>> for Ast<'a> {
+    fn from(value: Primary<'a>) -> Self {
+        match value {
+            Primary::Number(n) => Ast::Number(n),
+            Primary::Var(v) => Ast::Var(v),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Binary {
+pub struct Binary<'a> {
     pub op: Operator,
-    pub lhs: Box<Ast>,
-    pub rhs: Box<Ast>,
+    pub lhs: Box<Ast<'a>>,
+    pub rhs: Box<Ast<'a>>,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Primary {
-    pub attrs: Attrs,
-    pub kind: PrimaryKind,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum PrimaryKind {
-    Var(Var),
+pub enum Primary<'a> {
+    Var(Var<'a>),
     Number(u64),
 }
 
 #[derive(Debug, Clone)]
-pub struct Unary {
+pub struct Unary<'a> {
     pub op: Operator,
-    pub rhs: Box<Ast>,
+    pub rhs: Box<Ast<'a>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -87,199 +79,128 @@ impl Display for Operator {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Var {
-    pub id: u64,
+pub struct Var<'a> {
+    pub name: &'a str,
     pub exponent: u64,
 }
 
-impl Var {
-    pub fn new(id: u64) -> Self {
-        Self { id, exponent: 1 }
+impl<'a> Var<'a> {
+    pub fn new(name: &'a str) -> Self {
+        Self { name, exponent: 1 }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Ast {
-    pub attrs: Attrs,
-    pub node: Node,
-}
-
-impl From<Primary> for Ast {
-    fn from(value: Primary) -> Self {
-        Self {
-            attrs: value.attrs,
-            node: match value.kind {
-                PrimaryKind::Number(n) => Node::Number(n),
-                PrimaryKind::Var(v) => Node::Var(v),
-            },
-        }
-    }
-}
-
-impl Ast {
-    pub fn new(attrs: Attrs, node: Node) -> Self {
-        Self { attrs, node }
-    }
-
-    pub fn number(attrs: Attrs, n: u64) -> Self {
-        Self {
-            attrs,
-            node: Node::Number(n),
-        }
-    }
-
-    pub fn pretty_print(&self, nursery: &Nursery) -> String {
+impl<'a> Ast<'a> {
+    pub fn pretty_print(&self) -> String {
         let mut result = String::new();
-        self.pretty_print_internal(nursery, &mut result);
+        self.pretty_print_internal(&mut result);
 
         result
     }
 
-    fn pretty_print_internal(&self, nursery: &Nursery, result: &mut String) {
-        fn pretty_print_node(node: &Node, nursery: &Nursery, result: &mut String) {
+    fn pretty_print_internal(&self, result: &mut String) {
+        fn pretty_print_ast(node: &Ast, result: &mut String) {
             match node {
-                Node::Number(n) => result.push_str(&n.to_string()),
+                Ast::Number(n) => result.push_str(&n.to_string()),
 
-                Node::Var(v) => match v.exponent {
+                Ast::Var(v) => match v.exponent {
                     0 => result.push_str("1"),
-                    1 => result.push_str(nursery.get_var_string_or_panic(v)),
-                    _ => result.push_str(&format!(
-                        "{}^{}",
-                        nursery.get_var_string_or_panic(v),
-                        v.exponent
-                    )),
+                    1 => result.push_str(v.name),
+                    _ => result.push_str(&format!("{}^{}", v.name, v.exponent)),
                 },
 
-                Node::Binary(binary) => {
-                    binary.lhs.pretty_print_internal(nursery, result);
+                Ast::Binary(binary) => {
+                    binary.lhs.pretty_print_internal(result);
                     result.push_str(" ");
                     result.push_str(&binary.op.to_string());
                     result.push_str(" ");
-                    binary.rhs.pretty_print_internal(nursery, result);
+                    binary.rhs.pretty_print_internal(result);
                 }
 
-                Node::Group(g) => {
+                Ast::Group(g) => {
                     result.push_str("(");
-                    g.pretty_print_internal(nursery, result);
+                    g.pretty_print_internal(result);
                     result.push_str(")");
                 }
 
-                Node::Unary(unary) => {
+                Ast::Unary(unary) => {
                     result.push_str(&unary.op.to_string());
-                    unary.rhs.pretty_print_internal(nursery, result);
+                    unary.rhs.pretty_print_internal(result);
                 }
             }
         }
 
-        pretty_print_node(&self.node, nursery, result);
+        pretty_print_ast(&self, result);
     }
 
     pub fn as_number(&self) -> u64 {
-        match &self.node {
-            Node::Number(n) => *n,
+        match self {
+            Ast::Number(n) => *n,
             _ => panic!("not a number"),
         }
     }
 
     pub fn as_var(&self) -> Var {
-        match &self.node {
-            Node::Var(v) => *v,
+        match self {
+            Ast::Var(v) => *v,
             _ => panic!("not a var"),
         }
     }
 
     pub fn as_binary(&self) -> &Binary {
-        match &self.node {
-            Node::Binary(b) => b,
+        match self {
+            Ast::Binary(b) => b,
             _ => panic!("not a binary"),
         }
     }
 
     pub fn as_unary(&self) -> &Unary {
-        match &self.node {
-            Node::Unary(u) => u,
+        match self {
+            Ast::Unary(u) => u,
             _ => panic!("not a unary"),
         }
     }
 
     pub fn as_group(&self) -> &Ast {
-        match &self.node {
-            Node::Group(g) => g,
+        match self {
+            Ast::Group(g) => g,
             _ => panic!("not a group"),
         }
     }
 
     pub fn is_group(&self) -> bool {
-        matches!(self.node, Node::Group(_))
+        matches!(self, Ast::Group(_))
     }
 
-    pub fn distribute(self, op: Operator, primary: Primary) -> Ast {
-        match self.node {
-            Node::Binary(binary) => Ast {
-                attrs: self.attrs,
-                node: Node::Binary(Binary {
-                    op: binary.op,
-                    lhs: Box::new(Ast {
-                        attrs: self.attrs,
-                        node: Node::Binary(Binary {
-                            op,
-                            lhs: Box::new(primary.into()),
-                            rhs: binary.lhs,
-                        }),
-                    }),
-                    rhs: binary.rhs,
-                }),
-            },
-
-            node => Ast {
-                attrs: self.attrs,
-                node: Node::Binary(Binary {
+    pub fn distribute(self, op: Operator, primary: Primary<'a>) -> Ast<'a> {
+        match self {
+            Ast::Binary(binary) => Ast::Binary(Binary {
+                op: binary.op,
+                lhs: Box::new(Ast::Binary(Binary {
                     op,
                     lhs: Box::new(primary.into()),
-                    rhs: Box::new(Ast {
-                        attrs: self.attrs,
-                        node,
-                    }),
-                }),
-            },
+                    rhs: binary.lhs,
+                })),
+                rhs: binary.rhs,
+            }),
+
+            other => Ast::Binary(Binary {
+                op,
+                lhs: Box::new(primary.into()),
+                rhs: Box::new(other),
+            }),
         }
     }
 
-    pub fn collect_additive_terms(self) -> Vec<Ast> {
-        let mut result = Vec::new();
-
-        match self.node {
-            Node::Binary(binary) if matches!(binary.op, Operator::Add | Operator::Sub) => {
-                result.extend(binary.lhs.collect_additive_terms());
-                result.extend(binary.rhs.collect_additive_terms());
-            }
-
-            Node::Group(group) => result = group.collect_additive_terms(),
-
-            node => {
-                result.push(Ast {
-                    attrs: self.attrs,
-                    node,
-                });
-            }
-        }
-
-        result
+    pub fn is_primary(&self) -> bool {
+        matches!(self, Ast::Number(_) | Ast::Var(_))
     }
 
-    pub fn as_primary(&self) -> Option<Primary> {
-        match &self.node {
-            Node::Number(n) => Some(Primary {
-                attrs: self.attrs,
-                kind: PrimaryKind::Number(*n),
-            }),
-
-            Node::Var(v) => Some(Primary {
-                attrs: self.attrs,
-                kind: PrimaryKind::Var(*v),
-            }),
-
-            _ => None,
+    pub fn primary_or_panic(self) -> Primary<'a> {
+        match self {
+            Ast::Number(n) => Primary::Number(n),
+            Ast::Var(v) => Primary::Var(v),
+            _ => panic!("not a primary"),
         }
     }
 }

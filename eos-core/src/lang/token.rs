@@ -1,4 +1,3 @@
-use crate::lang::Position;
 use std::fmt::Display;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -23,13 +22,18 @@ impl Display for Sym {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Token {
+pub struct Token<'a> {
     pub sym: Sym,
-    pub position: Position,
+    pub position: usize,
+    pub value: &'a str,
 }
 
-impl Token {
-    pub fn new(sym: Sym, position: Position) -> Self {
-        Self { sym, position }
+impl<'a> Token<'a> {
+    pub fn new(sym: Sym, position: usize, value: &'a str) -> Self {
+        Self {
+            sym,
+            position,
+            value,
+        }
     }
 }
