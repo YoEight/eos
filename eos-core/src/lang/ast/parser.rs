@@ -26,67 +26,41 @@ impl Display for Error {
     }
 }
 
-#[derive(Clone, Copy)]
-struct Internal<'a> {
+pub struct Parser<'a> {
     lexer: Lexer<'a>,
     cache: Option<Token<'a>>,
-}
-
-impl<'a> Internal<'a> {
-    fn new(lexer: Lexer<'a>) -> Self {
-        Self { lexer, cache: None }
-    }
-
-    fn look_ahead(mut self) -> crate::lang::Result<(Token<'a>, Self)> {
-        if let Some(token) = self.cache {
-            return Ok((token, self));
-        }
-
-        let (token, next) = self.lexer.next_token()?;
-        self.cache = Some(token);
-        self.lexer = next;
-
-        Ok((token, self))
-    }
-
-    fn shift(mut self) -> crate::lang::Result<(Token<'a>, Self)> {
-        if let Some(token) = self.cache.take() {
-            return Ok((token, self));
-        }
-
-        let (token, next) = self.lexer.next_token()?;
-        self.lexer = next;
-
-        Ok((token, self))
-    }
-}
-
-pub struct Parser<'a> {
-    internal: Internal<'a>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(expr: &'a str) -> Self {
         Self {
-            internal: Internal::new(Lexer::new(expr)),
+            lexer: Lexer::new(expr),
+            cache: None,
         }
     }
 
-    fn look_ahead(&mut self) -> crate::lang::Result<Token> {
-        let (token, next) = self.internal.look_ahead()?;
-        self.internal = next;
+    fn look_ahead<'b>(&'b mut self) -> crate::lang::Result<Token<'a>> {
+        if let Some(token) = self.cache {
+            return Ok(token);
+        }
+
+        let token = self.lexer.next_token()?;
+        self.cache = Some(token);
 
         Ok(token)
     }
 
-    fn shift(&mut self) -> crate::lang::Result<Token> {
-        let (token, next) = self.internal.shift()?;
-        self.internal = next;
+    fn shift<'b>(&'b mut self) -> crate::lang::Result<Token<'a>> {
+        if let Some(token) = self.cache.take() {
+            return Ok(token);
+        }
+
+        let token = self.lexer.next_token()?;
 
         Ok(token)
     }
 
-    pub fn parse_top_level_ast(&mut self) -> crate::lang::Result<Ast> {
+    pub fn parse_top_level_ast(mut self) -> crate::lang::Result<Ast<'a>> {
         let ast = self.parse_ast()?;
         let token = self.shift()?;
 
@@ -97,7 +71,7 @@ impl<'a> Parser<'a> {
         Ok(ast)
     }
 
-    pub fn parse_ast(&mut self) -> crate::lang::Result<Ast> {
+    pub fn parse_ast<'b>(&'b mut self) -> crate::lang::Result<Ast<'a>> {
         let token = self.look_ahead()?;
 
         if token.sym == Sym::EOF {
@@ -122,7 +96,7 @@ impl<'a> Parser<'a> {
         );
     }
 
-    fn parse_binary(&mut self, min_bind: u64) -> crate::lang::Result<Ast> {
+    fn parse_binary<'b>(&'b mut self, min_bind: u64) -> crate::lang::Result<Ast<'a>> {
         let token = self.look_ahead()?;
 
         let mut lhs = if token.value == "(" {
@@ -165,7 +139,7 @@ impl<'a> Parser<'a> {
         Ok(lhs)
     }
 
-    fn parse_group(&mut self) -> crate::lang::Result<Ast> {
+    fn parse_group(&mut self) -> crate::lang::Result<Ast<'a>> {
         {
             let open_token = self.shift()?;
 
@@ -190,7 +164,7 @@ impl<'a> Parser<'a> {
         Ok(Ast::Group(Box::new(ast)))
     }
 
-    fn parse_unary(&mut self) -> crate::lang::Result<Ast> {
+    fn parse_unary(&mut self) -> crate::lang::Result<Ast<'a>> {
         {
             let token = self.shift()?;
 
@@ -210,7 +184,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_primary(&mut self) -> crate::lang::Result<Ast> {
+    fn parse_primary<'b>(&'b mut self) -> crate::lang::Result<Ast<'a>> {
         let token = self.shift()?;
 
         if token.sym == Sym::Number {

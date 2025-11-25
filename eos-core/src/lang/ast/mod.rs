@@ -7,17 +7,6 @@ mod tests;
 
 pub use parser::Error;
 
-#[derive(Debug, Copy, Clone)]
-pub struct Attrs {
-    pub position: usize,
-}
-
-impl Attrs {
-    pub fn new(position: usize) -> Self {
-        Self { position }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Ast<'a> {
     Number(u64),
@@ -140,28 +129,28 @@ impl<'a> Ast<'a> {
         }
     }
 
-    pub fn as_var(&self) -> Var {
+    pub fn as_var(&self) -> Var<'_> {
         match self {
             Ast::Var(v) => *v,
             _ => panic!("not a var"),
         }
     }
 
-    pub fn as_binary(&self) -> &Binary {
+    pub fn as_binary(&self) -> &Binary<'_> {
         match self {
             Ast::Binary(b) => b,
             _ => panic!("not a binary"),
         }
     }
 
-    pub fn as_unary(&self) -> &Unary {
+    pub fn as_unary(&self) -> &Unary<'_> {
         match self {
             Ast::Unary(u) => u,
             _ => panic!("not a unary"),
         }
     }
 
-    pub fn as_group(&self) -> &Ast {
+    pub fn as_group(&self) -> &Ast<'_> {
         match self {
             Ast::Group(g) => g,
             _ => panic!("not a group"),

@@ -1,86 +1,84 @@
-use crate::lang::lexical::text::Input;
 use crate::lang::lexical::Error;
+use crate::lang::lexical::text::Text;
 use crate::lang::token::{Sym, Token};
 
 #[derive(Clone, Copy)]
 pub struct Lexer<'a> {
-    input: Input<'a>,
+    input: Text<'a>,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(expr: &'a str) -> Self {
         Self {
-            input: Input::new(expr),
+            input: Text::new(expr),
         }
     }
 
-    fn look_ahead(self) -> Option<&'a str> {
+    fn look_ahead<'b>(&'b self) -> Option<&'a str> {
         let (result, _) = self.input.peek();
 
         result
     }
 
-    fn shift(mut self) -> (Option<&'a str>, Self) {
+    fn shift<'b>(&'b mut self) -> Option<&'a str> {
         let (result, next) = self.input.shift();
         self.input = next;
 
-        (result, self)
+        result
     }
 
-    fn skip_whitespaces(mut self) -> Self {
+    fn skip_whitespaces(&mut self) {
         self.input = self.input.skip_whitespaces();
-        self
     }
 
-    fn take_while(mut self, fun: impl Fn(char) -> bool) -> (&'a str, Self) {
+    fn take_while<'b>(&'b mut self, fun: impl Fn(char) -> bool) -> &'a str {
         let (result, next) = self.input.take_while(fun);
         self.input = next;
 
-        (result, self)
+        result
     }
 
-    pub fn next_token(mut self) -> crate::lang::Result<(Token<'a>, Self)> {
-        let mut current = self.skip_whitespaces();
-        let start = current.input.pos();
+    pub fn next_token<'b>(&'b mut self) -> crate::lang::Result<Token<'a>> {
+        self.skip_whitespaces();
+        let start = self.input.pos();
 
-        if let Some(value) = current.look_ahead() {
+        if let Some(value) = self.look_ahead() {
             let c = value.as_bytes()[0] as char;
             match c {
                 '(' | ')' => {
-                    let (_, next) = current.shift();
-                    Ok((Token::new(Sym::Symbol, start, value), next))
+                    self.shift();
+                    Ok(Token::new(Sym::Symbol, start, value))
                 }
 
                 '+' | '-' | '*' | '/' | '=' | '^' => {
-                    let (_, next) = current.shift();
-                    Ok((Token::new(Sym::Operator, start, value), next))
+                    self.shift();
+                    Ok(Token::new(Sym::Operator, start, value))
                 }
 
                 _ if c.is_ascii_digit() => {
-                    let (numbers, next) = self.take_while(|c| c.is_ascii_digit());
+                    let numbers = self.take_while(|c| c.is_ascii_digit());
 
-                    Ok((Token::new(Sym::Number, start, numbers), next))
+                    Ok(Token::new(Sym::Number, start, numbers))
                 }
 
                 _ if c.is_ascii_alphabetic() => {
-                    let (name, next) = self.take_while(|c| c.is_ascii_alphanumeric());
-                    Ok((Token::new(Sym::Variable, start, name), next))
+                    let name = self.take_while(|c| c.is_ascii_alphanumeric());
+                    Ok(Token::new(Sym::Variable, start, name))
                 }
 
                 _ => bail!(start, Error::UnexpectedChar(c)),
             }
         } else {
-            Ok((Token::new(Sym::EOF, start, ""), current))
+            Ok(Token::new(Sym::EOF, start, ""))
         }
     }
 
-    pub fn collect_tokens(self) -> crate::lang::Result<Vec<Token<'a>>> {
-        let mut current = self;
+    #[cfg(test)]
+    pub fn collect_tokens<'b>(&'b mut self) -> crate::lang::Result<Vec<Token<'a>>> {
         let mut tokens = Vec::new();
 
         loop {
-            let (token, next) = current.next_token()?;
-            current = next;
+            let token = self.next_token()?;
 
             tokens.push(token);
 

@@ -1,13 +1,10 @@
-use std::iter::Peekable;
-use std::str::Chars;
-
 #[derive(Copy, Clone)]
-pub struct Input<'a> {
+pub struct Text<'a> {
     pub text: &'a str,
     pub pos: usize,
 }
 
-impl<'a> Input<'a> {
+impl<'a> Text<'a> {
     pub fn new(text: &'a str) -> Self {
         Self { text, pos: 0 }
     }
@@ -61,35 +58,5 @@ impl<'a> Input<'a> {
 
     pub fn str(self, from: usize) -> &'a str {
         &self.text[from..self.pos]
-    }
-}
-
-pub struct Text<'a> {
-    inner: Peekable<Chars<'a>>,
-    position: usize,
-}
-
-impl<'a> Text<'a> {
-    pub fn new(query: &'a str) -> Self {
-        Self {
-            inner: query.chars().peekable(),
-            position: 0,
-        }
-    }
-
-    pub fn shift(&mut self) -> Option<char> {
-        let c = self.inner.next()?;
-
-        self.position += 1;
-
-        Some(c)
-    }
-
-    pub fn position(&self) -> usize {
-        self.position
-    }
-
-    pub fn look_ahead(&mut self) -> Option<char> {
-        self.inner.peek().copied()
     }
 }

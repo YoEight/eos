@@ -3,7 +3,7 @@ use crate::lang::token::{Sym, Token};
 
 #[test]
 fn test_tokenize_sum() -> crate::lang::Result<()> {
-    let lexer = Lexer::new("1 + 2 * 3");
+    let mut lexer = Lexer::new("1 + 2 * 3");
 
     let tokens = lexer.collect_tokens()?;
     let tok_one = Token::new(Sym::Number, 0, "1");

@@ -1,9 +1,9 @@
-use crate::lang::ast::parser::Parser;
 use crate::lang::ast::Operator;
+use crate::lang::ast::parser::Parser;
 
 #[test]
 fn test_parser_sum() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("1 + 2 ^ 3 + 4");
+    let parser = Parser::new("1 + 2 ^ 3 + 4");
 
     let ast = parser.parse_top_level_ast()?;
     let binary = ast.as_binary();
@@ -29,7 +29,7 @@ fn test_parser_sum() -> crate::lang::Result<()> {
 
 #[test]
 fn test_parser_unary() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("-1");
+    let parser = Parser::new("-1");
 
     let ast = parser.parse_top_level_ast()?;
 
@@ -43,7 +43,7 @@ fn test_parser_unary() -> crate::lang::Result<()> {
 
 #[test]
 fn test_parser_group() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("(1 + 2)");
+    let parser = Parser::new("(1 + 2)");
 
     let ast = parser.parse_top_level_ast()?;
 
@@ -57,7 +57,7 @@ fn test_parser_group() -> crate::lang::Result<()> {
 
 #[test]
 fn test_parser_sum_var() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("1 + x ^ 3 + 4");
+    let parser = Parser::new("1 + x ^ 3 + 4");
 
     let ast = parser.parse_top_level_ast()?;
     let binary = ast.as_binary();
@@ -84,7 +84,7 @@ fn test_parser_sum_var() -> crate::lang::Result<()> {
 
 #[test]
 fn test_parser_sum_with_sub() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("1 - 2 + 3");
+    let parser = Parser::new("1 - 2 + 3");
 
     let ast = parser.parse_top_level_ast()?;
     let binary = ast.as_binary();

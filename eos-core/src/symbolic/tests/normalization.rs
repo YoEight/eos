@@ -3,7 +3,7 @@ use crate::symbolic::normalization::normalize;
 
 #[test]
 fn test_normalize_mul_distribution_case_1() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("2 * (1 + 2 + 3)");
+    let parser = Parser::new("2 * (1 + 2 + 3)");
 
     let ast = parser.parse_top_level_ast()?;
     let ast = normalize(ast);
@@ -16,7 +16,7 @@ fn test_normalize_mul_distribution_case_1() -> crate::lang::Result<()> {
 
 #[test]
 fn test_normalize_mul_distribution_case_2() -> crate::lang::Result<()> {
-    let mut parser = Parser::new("2 * (1 - 2 + 3)");
+    let parser = Parser::new("2 * (1 - 2 + 3)");
     let ast = parser.parse_top_level_ast()?;
     let ast = normalize(ast);
     let printed = ast.pretty_print();
