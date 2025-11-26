@@ -1,95 +1,84 @@
 use crate::lang::lexical::Error;
 use crate::lang::lexical::text::Text;
-use crate::lang::nursery::Nursery;
 use crate::lang::token::{Sym, Token};
 
+#[derive(Clone, Copy)]
 pub struct Lexer<'a> {
-    text: Text<'a>,
+    input: Text<'a>,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(expr: &'a str) -> Self {
         Self {
-            text: Text::new(expr),
+            input: Text::new(expr),
         }
     }
 
-    pub fn next_token(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Token> {
-        let mut position = self.text.position();
+    fn look_ahead<'b>(&'b self) -> Option<&'a str> {
+        let (result, _) = self.input.peek();
 
-        if let Some(c) = self.text.look_ahead()
-            && c.is_whitespace()
-        {
-            self.text.shift();
-            position = self.text.position();
-        }
+        result
+    }
 
-        if let Some(c) = self.text.look_ahead() {
+    fn shift<'b>(&'b mut self) -> Option<&'a str> {
+        let (result, next) = self.input.shift();
+        self.input = next;
+
+        result
+    }
+
+    fn skip_whitespaces(&mut self) {
+        self.input = self.input.skip_whitespaces();
+    }
+
+    fn take_while<'b>(&'b mut self, fun: impl Fn(char) -> bool) -> &'a str {
+        let (result, next) = self.input.take_while(fun);
+        self.input = next;
+
+        result
+    }
+
+    pub fn next_token<'b>(&'b mut self) -> crate::lang::Result<Token<'a>> {
+        self.skip_whitespaces();
+        let start = self.input.pos();
+
+        if let Some(value) = self.look_ahead() {
+            let c = value.as_bytes()[0] as char;
             match c {
                 '(' | ')' => {
-                    self.text.shift();
-                    nursery.register_char(position, c);
-                    Ok(Token::new(Sym::Symbol, position))
+                    self.shift();
+                    Ok(Token::new(Sym::Symbol, start, value))
                 }
 
                 '+' | '-' | '*' | '/' | '=' | '^' => {
-                    self.text.shift();
-                    nursery.register_char(position, c);
-                    Ok(Token::new(Sym::Operator, position))
+                    self.shift();
+                    Ok(Token::new(Sym::Operator, start, value))
                 }
 
                 _ if c.is_ascii_digit() => {
-                    self.text.shift();
+                    let numbers = self.take_while(|c| c.is_ascii_digit());
 
-                    let mut numbers = String::new();
-                    numbers.push(c);
-
-                    while let Some(c) = self.text.look_ahead() {
-                        if !c.is_ascii_digit() {
-                            break;
-                        }
-
-                        self.text.shift();
-                        numbers.push(c);
-                    }
-
-                    nursery.register_string(position, numbers);
-
-                    Ok(Token::new(Sym::Number, position))
+                    Ok(Token::new(Sym::Number, start, numbers))
                 }
 
                 _ if c.is_ascii_alphabetic() => {
-                    self.text.shift();
-
-                    let mut name = String::new();
-                    name.push(c);
-
-                    while let Some(c) = self.text.look_ahead() {
-                        if !c.is_ascii_alphanumeric() {
-                            break;
-                        }
-
-                        self.text.shift();
-                        name.push(c);
-                    }
-
-                    nursery.register_string(position, name);
-
-                    Ok(Token::new(Sym::Variable, position))
+                    let name = self.take_while(|c| c.is_ascii_alphanumeric());
+                    Ok(Token::new(Sym::Variable, start, name))
                 }
 
-                _ => bail!(position, Error::UnexpectedChar(c)),
+                _ => bail!(start, Error::UnexpectedChar(c)),
             }
         } else {
-            Ok(Token::new(Sym::EOF, position))
+            Ok(Token::new(Sym::EOF, start, ""))
         }
     }
 
-    pub fn collect_tokens(&mut self, nursery: &mut Nursery) -> crate::lang::Result<Vec<Token>> {
+    #[cfg(test)]
+    pub fn collect_tokens<'b>(&'b mut self) -> crate::lang::Result<Vec<Token<'a>>> {
         let mut tokens = Vec::new();
 
         loop {
-            let token = self.next_token(nursery)?;
+            let token = self.next_token()?;
 
             tokens.push(token);
 

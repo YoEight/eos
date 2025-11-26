@@ -1,38 +1,62 @@
-use crate::lang::Position;
-use std::iter::Peekable;
-use std::str::Chars;
-
+#[derive(Copy, Clone)]
 pub struct Text<'a> {
-    inner: Peekable<Chars<'a>>,
-    position: Position,
+    pub text: &'a str,
+    pub pos: usize,
 }
 
 impl<'a> Text<'a> {
-    pub fn new(query: &'a str) -> Self {
-        Self {
-            inner: query.chars().peekable(),
-            position: Position::default(),
-        }
+    pub fn new(text: &'a str) -> Self {
+        Self { text, pos: 0 }
     }
 
-    pub fn shift(&mut self) -> Option<char> {
-        let c = self.inner.next()?;
-
-        if c == '\n' {
-            self.position.line += 1;
-            self.position.column = 1;
-        } else {
-            self.position.column += 1;
+    pub fn peek(self) -> (Option<&'a str>, Self) {
+        if self.pos >= self.text.len() {
+            return (None, self);
         }
 
-        Some(c)
+        (Some(&self.text[self.pos..=self.pos]), self)
     }
 
-    pub fn position(&self) -> Position {
-        self.position
+    pub fn pos(&self) -> usize {
+        self.pos
     }
 
-    pub fn look_ahead(&mut self) -> Option<char> {
-        self.inner.peek().copied()
+    pub fn shift(mut self) -> (Option<&'a str>, Self) {
+        if self.pos >= self.text.len() {
+            return (None, self);
+        }
+
+        let value = &self.text[self.pos..=self.pos];
+        self.pos += 1;
+
+        (Some(value), self)
+    }
+
+    pub fn skip_while(self, fun: impl Fn(char) -> bool) -> Self {
+        let mut current = self;
+
+        while let (Some(c), _) = current.peek()
+            && fun(c.as_bytes()[0] as char)
+        {
+            let (_, next) = current.shift();
+            current = next;
+        }
+
+        current
+    }
+
+    pub fn take_while(self, fun: impl Fn(char) -> bool) -> (&'a str, Self) {
+        let pos = self.pos;
+        let next = self.skip_while(fun);
+
+        (next.str(pos), next)
+    }
+
+    pub fn skip_whitespaces(self) -> Self {
+        self.skip_while(|c| c.is_ascii_whitespace())
+    }
+
+    pub fn str(self, from: usize) -> &'a str {
+        &self.text[from..self.pos]
     }
 }

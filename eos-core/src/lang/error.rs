@@ -1,9 +1,9 @@
-use crate::lang::{ast, lexical, Position};
+use crate::lang::{ast, lexical};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct Error {
-    pub pos: Position,
+    pub pos: usize,
     pub kind: ErrorKind,
 }
 
