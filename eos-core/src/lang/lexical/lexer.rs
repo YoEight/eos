@@ -1,5 +1,5 @@
-use crate::lang::lexical::text::Text;
 use crate::lang::lexical::Error;
+use crate::lang::lexical::text::Text;
 use crate::lang::token::{Sym, Token};
 
 #[derive(Clone, Copy)]

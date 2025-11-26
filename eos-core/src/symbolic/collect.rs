@@ -1,5 +1,5 @@
-use crate::lang::Operator;
 use crate::Ast;
+use crate::lang::Operator;
 
 pub struct Additive<A> {
     pub is_add: bool,
