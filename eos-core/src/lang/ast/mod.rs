@@ -93,23 +93,23 @@ impl<'a> Ast<'a> {
                 Ast::Number(n) => result.push_str(&n.to_string()),
 
                 Ast::Var(v) => match v.exponent {
-                    0 => result.push_str("1"),
+                    0 => result.push('1'),
                     1 => result.push_str(v.name),
                     _ => result.push_str(&format!("{}^{}", v.name, v.exponent)),
                 },
 
                 Ast::Binary(binary) => {
                     binary.lhs.pretty_print_internal(result);
-                    result.push_str(" ");
+                    result.push(' ');
                     result.push_str(&binary.op.to_string());
-                    result.push_str(" ");
+                    result.push(' ');
                     binary.rhs.pretty_print_internal(result);
                 }
 
                 Ast::Group(g) => {
-                    result.push_str("(");
+                    result.push('(');
                     g.pretty_print_internal(result);
-                    result.push_str(")");
+                    result.push(')');
                 }
 
                 Ast::Unary(unary) => {
@@ -119,7 +119,7 @@ impl<'a> Ast<'a> {
             }
         }
 
-        pretty_print_ast(&self, result);
+        pretty_print_ast(self, result);
     }
 
     pub fn as_number(&self) -> u64 {

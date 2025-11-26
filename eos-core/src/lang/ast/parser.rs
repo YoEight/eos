@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
         let ast = self.parse_ast()?;
         let token = self.shift()?;
 
-        if token.sym != Sym::EOF {
+        if token.sym != Sym::Eof {
             bail!(token.position, Error::UnexpectedEOF);
         }
 
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     pub fn parse_ast<'b>(&'b mut self) -> crate::lang::Result<Ast<'a>> {
         let token = self.look_ahead()?;
 
-        if token.sym == Sym::EOF {
+        if token.sym == Sym::Eof {
             bail!(token.position, Error::UnexpectedEOF);
         }
 
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
         loop {
             let token = self.look_ahead()?;
 
-            if token.sym == Sym::EOF || token.value == ")" {
+            if token.sym == Sym::Eof || token.value == ")" {
                 return Ok(lhs);
             }
 
