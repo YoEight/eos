@@ -1,6 +1,6 @@
-use crate::Ast;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::CollectAdditives;
+use crate::Ast;
 
 pub fn simplify(ast: Ast) -> Ast {
     match ast {
@@ -89,6 +89,10 @@ fn simplify_binary(mut binary: Binary) -> Ast {
     }
 }
 
-fn simplify_unary(unary: Unary) -> Ast {
-    todo!()
+fn simplify_unary(mut unary: Unary) -> Ast {
+    let rhs = simplify(*unary.rhs);
+
+    unary.rhs = Box::new(rhs);
+
+    Ast::Unary(unary)
 }
