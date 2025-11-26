@@ -4,7 +4,7 @@ use crate::symbolic::collect::CollectAdditives;
 pub fn normalize(ast: Ast) -> Ast {
     match ast {
         Ast::Binary(binary) => normalize_binary(binary.op, *binary.lhs, *binary.rhs),
-        Ast::Group(group) => Ast::Group(normalize_group(group)),
+        Ast::Group(group) => Ast::Group(Box::new(normalize(*group))),
         Ast::Unary(unary) => Ast::Unary(normalize_unary(unary)),
         other => other,
     }
@@ -33,10 +33,6 @@ pub fn normalize_binary<'a>(op: Operator, mut lhs: Ast<'a>, mut rhs: Ast<'a>) ->
             rhs: Box::new(rhs),
         })
     }
-}
-
-fn normalize_group(group: Box<Ast>) -> Box<Ast> {
-    Box::new(normalize(*group))
 }
 
 fn normalize_unary(unary: Unary) -> Unary {

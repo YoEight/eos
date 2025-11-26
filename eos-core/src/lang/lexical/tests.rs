@@ -20,7 +20,7 @@ fn test_tokenize_sum() -> crate::lang::Result<()> {
             tok_two,
             tok_mul,
             tok_three,
-            Token::new(Sym::EOF, 9, ""),
+            Token::new(Sym::Eof, 9, ""),
         ]
     );
 

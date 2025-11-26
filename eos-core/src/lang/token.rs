@@ -6,7 +6,7 @@ pub enum Sym {
     Variable,
     Operator,
     Symbol,
-    EOF,
+    Eof,
 }
 
 impl Display for Sym {
@@ -16,7 +16,7 @@ impl Display for Sym {
             Self::Variable => write!(f, "variable"),
             Self::Operator => write!(f, "operator"),
             Self::Symbol => write!(f, "symbol"),
-            Self::EOF => write!(f, "EOF"),
+            Self::Eof => write!(f, "EOF"),
         }
     }
 }

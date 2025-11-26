@@ -1,5 +1,5 @@
-use crate::lang::lexical::Error;
 use crate::lang::lexical::text::Text;
+use crate::lang::lexical::Error;
 use crate::lang::token::{Sym, Token};
 
 #[derive(Clone, Copy)]
@@ -69,7 +69,7 @@ impl<'a> Lexer<'a> {
                 _ => bail!(start, Error::UnexpectedChar(c)),
             }
         } else {
-            Ok(Token::new(Sym::EOF, start, ""))
+            Ok(Token::new(Sym::Eof, start, ""))
         }
     }
 
@@ -82,7 +82,7 @@ impl<'a> Lexer<'a> {
 
             tokens.push(token);
 
-            if token.sym == Sym::EOF {
+            if token.sym == Sym::Eof {
                 break;
             }
         }

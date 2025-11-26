@@ -38,7 +38,7 @@ impl<'a, 'b> CollectAdditives<'a, 'b> {
                 _ => self.inner.push(Additive { is_add, inner: ast }),
             },
 
-            Ast::Group(group) => self.collect_internal(is_add, &group),
+            Ast::Group(group) => self.collect_internal(is_add, group),
 
             Ast::Unary(unary) => self.collect_internal(unary.op != Operator::Sub, &unary.rhs),
 
