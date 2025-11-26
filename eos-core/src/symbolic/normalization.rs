@@ -44,7 +44,7 @@ fn normalize_unary(unary: Unary) -> Unary {
 
 fn distribute_mul_over_additive<'a>(primary: Ast<'a>, target: Ast<'a>) -> Ast<'a> {
     let mut additive_collector = CollectAdditives::default();
-    additive_collector.collect(&target);
+    additive_collector.collect(target);
     let mut agg: Ast<'a> = primary.clone();
 
     for (idx, additive) in additive_collector.into_inner().into_iter().enumerate() {
