@@ -1,4 +1,5 @@
 use crate::lang::{Ast, Binary, Operator, Primary, Unary};
+use crate::symbolic::collect::CollectAdditives;
 
 pub fn normalize(ast: Ast) -> Ast {
     match ast {
@@ -46,55 +47,11 @@ fn normalize_unary(unary: Unary) -> Unary {
 }
 
 fn distribute_mul_over_additive<'a>(primary: Primary<'a>, target: Ast<'a>) -> Ast<'a> {
-    struct Additive<A> {
-        is_add: bool,
-        inner: A,
-    }
-
-    fn collect<'a, 'b>(
-        mut nodes: Vec<Additive<&'a Ast<'b>>>,
-        is_add: bool,
-        ast: &'a Ast<'b>,
-    ) -> Vec<Additive<&'a Ast<'b>>> {
-        match &ast {
-            Ast::Binary(binary) => match binary.op {
-                Operator::Add => {
-                    nodes = collect(nodes, is_add, &binary.lhs);
-                    collect(nodes, is_add, &binary.rhs)
-                }
-
-                Operator::Sub => {
-                    nodes = collect(nodes, is_add, &binary.lhs);
-                    collect(nodes, false, &binary.rhs)
-                }
-
-                Operator::Eq => panic!("cannot distribute over '=' operator"),
-
-                _ => {
-                    nodes.push(Additive { is_add, inner: ast });
-                    nodes
-                }
-            },
-
-            Ast::Group(group) => collect(nodes, is_add, &group),
-
-            Ast::Unary(unary) => collect(nodes, unary.op != Operator::Sub, &unary.rhs),
-
-            other => {
-                nodes.push(Additive {
-                    is_add,
-                    inner: other,
-                });
-
-                nodes
-            }
-        }
-    }
-
-    let additives = collect(Vec::new(), true, &target);
+    let mut additive_collector = CollectAdditives::default();
+    additive_collector.collect(&target);
     let mut agg: Ast<'a> = primary.into();
 
-    for (idx, additive) in additives.into_iter().enumerate() {
+    for (idx, additive) in additive_collector.into_inner().into_iter().enumerate() {
         agg = if idx == 0 {
             if additive.is_add {
                 additive.inner.clone().distribute(Operator::Mul, primary)
