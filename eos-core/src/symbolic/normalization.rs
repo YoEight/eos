@@ -1,4 +1,4 @@
-use crate::lang::{Ast, Binary, Operator, Primary, Unary};
+use crate::lang::{Ast, Binary, Operator, Unary};
 use crate::symbolic::collect::CollectAdditives;
 
 pub fn normalize(ast: Ast) -> Ast {
@@ -23,9 +23,9 @@ pub fn normalize_binary<'a>(op: Operator, mut lhs: Ast<'a>, mut rhs: Ast<'a>) ->
     }
 
     if lhs.is_primary() && rhs.is_group() {
-        distribute_mul_over_additive(lhs.primary_or_panic(), rhs)
+        distribute_mul_over_additive(lhs, rhs)
     } else if rhs.is_primary() && lhs.is_group() {
-        distribute_mul_over_additive(rhs.primary_or_panic(), lhs)
+        distribute_mul_over_additive(rhs, lhs)
     } else {
         Ast::Binary(Binary {
             op,
@@ -46,15 +46,18 @@ fn normalize_unary(unary: Unary) -> Unary {
     }
 }
 
-fn distribute_mul_over_additive<'a>(primary: Primary<'a>, target: Ast<'a>) -> Ast<'a> {
+fn distribute_mul_over_additive<'a>(primary: Ast<'a>, target: Ast<'a>) -> Ast<'a> {
     let mut additive_collector = CollectAdditives::default();
     additive_collector.collect(&target);
-    let mut agg: Ast<'a> = primary.into();
+    let mut agg: Ast<'a> = primary.clone();
 
     for (idx, additive) in additive_collector.into_inner().into_iter().enumerate() {
         agg = if idx == 0 {
             if additive.is_add {
-                additive.inner.clone().distribute(Operator::Mul, primary)
+                additive
+                    .inner
+                    .clone()
+                    .distribute(Operator::Mul, primary.clone())
             } else {
                 Ast::Binary(Binary {
                     op: Operator::Mul,
@@ -62,7 +65,12 @@ fn distribute_mul_over_additive<'a>(primary: Primary<'a>, target: Ast<'a>) -> As
                         op: Operator::Sub,
                         rhs: Box::new(Ast::Number(1)),
                     })),
-                    rhs: Box::new(additive.inner.clone().distribute(Operator::Mul, primary)),
+                    rhs: Box::new(
+                        additive
+                            .inner
+                            .clone()
+                            .distribute(Operator::Mul, primary.clone()),
+                    ),
                 })
             }
         } else {
@@ -73,7 +81,12 @@ fn distribute_mul_over_additive<'a>(primary: Primary<'a>, target: Ast<'a>) -> As
                     Operator::Sub
                 },
                 lhs: Box::new(agg),
-                rhs: Box::new(additive.inner.clone().distribute(Operator::Mul, primary)),
+                rhs: Box::new(
+                    additive
+                        .inner
+                        .clone()
+                        .distribute(Operator::Mul, primary.clone()),
+                ),
             })
         };
     }

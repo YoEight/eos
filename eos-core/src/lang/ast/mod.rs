@@ -161,13 +161,13 @@ impl<'a> Ast<'a> {
         matches!(self, Ast::Group(_))
     }
 
-    pub fn distribute(self, op: Operator, primary: Primary<'a>) -> Ast<'a> {
+    pub fn distribute(self, op: Operator, primary: Ast<'a>) -> Ast<'a> {
         match self {
             Ast::Binary(binary) => Ast::Binary(Binary {
                 op: binary.op,
                 lhs: Box::new(Ast::Binary(Binary {
                     op,
-                    lhs: Box::new(primary.into()),
+                    lhs: Box::new(primary),
                     rhs: binary.lhs,
                 })),
                 rhs: binary.rhs,
@@ -175,7 +175,7 @@ impl<'a> Ast<'a> {
 
             other => Ast::Binary(Binary {
                 op,
-                lhs: Box::new(primary.into()),
+                lhs: Box::new(primary),
                 rhs: Box::new(other),
             }),
         }
@@ -183,13 +183,5 @@ impl<'a> Ast<'a> {
 
     pub fn is_primary(&self) -> bool {
         matches!(self, Ast::Number(_) | Ast::Var(_))
-    }
-
-    pub fn primary_or_panic(self) -> Primary<'a> {
-        match self {
-            Ast::Number(n) => Primary::Number(n),
-            Ast::Var(v) => Primary::Var(v),
-            _ => panic!("not a primary"),
-        }
     }
 }
