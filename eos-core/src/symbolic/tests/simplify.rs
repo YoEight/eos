@@ -63,3 +63,39 @@ fn test_simplify_unary_group() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_binary_mul() -> crate::Result<()> {
+    let expr = normalize(parse("1 * 2 * 3")?);
+
+    assert_eq!("6", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_binary_mul_unary() -> crate::Result<()> {
+    let expr = normalize(parse("-1 * 2 * 3")?);
+
+    assert_eq!("-6", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_binary_mul_zero() -> crate::Result<()> {
+    let expr = normalize(parse("-1 * 2 * 0")?);
+
+    assert_eq!("0", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_binary_mul_group_unary() -> crate::Result<()> {
+    let expr = normalize(parse("-(1 + 3) * 4 * (4 * 5)")?);
+
+    assert_eq!("-320", simplify(expr).pretty_print());
+
+    Ok(())
+}
