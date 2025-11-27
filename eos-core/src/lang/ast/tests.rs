@@ -118,3 +118,13 @@ fn test_parser_unary_complex() -> crate::lang::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_parser_with_variables() -> crate::lang::Result<()> {
+    let parser = Parser::new("2 * x + x + 2");
+    let ast = parser.parse_top_level_ast()?;
+
+    assert_eq!(ast.pretty_print(), "2 * x + x + 2");
+
+    Ok(())
+}

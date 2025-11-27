@@ -99,3 +99,12 @@ fn test_simplify_binary_mul_group_unary() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_vars() -> crate::Result<()> {
+    let expr = normalize(parse("2 * x + x + 2")?);
+
+    assert_eq!("3 * x + 2", simplify(expr).pretty_print());
+
+    Ok(())
+}
