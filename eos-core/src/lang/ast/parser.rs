@@ -78,16 +78,12 @@ impl<'a> Parser<'a> {
             bail!(token.position, Error::UnexpectedEOF);
         }
 
-        if token.sym == Sym::Number || token.sym == Sym::Variable {
+        if matches!(token.sym, Sym::Number | Sym::Variable) || matches!(token.value, "-" | "+") {
             return self.parse_binary(0);
         }
 
         if token.value == "(" {
             return self.parse_group();
-        }
-
-        if token.value == "-" {
-            return self.parse_unary();
         }
 
         bail!(
@@ -101,6 +97,43 @@ impl<'a> Parser<'a> {
 
         let mut lhs = if token.value == "(" {
             self.parse_group()?
+        } else if matches!(token.value, "-" | "+") {
+            self.shift()?;
+
+            let mut operators = vec![into_operator(token.value)];
+
+            loop {
+                let token = self.look_ahead()?;
+
+                if !matches!(token.value, "-" | "+") {
+                    break;
+                }
+
+                self.shift()?;
+                operators.push(into_operator(token.value));
+            }
+
+            let token = self.look_ahead()?;
+
+            let mut expr = if matches!(token.sym, Sym::Number | Sym::Variable) {
+                self.parse_primary()?
+            } else if token.value == "(" {
+                self.parse_group()?
+            } else {
+                bail!(
+                    token.position,
+                    Error::UnexpectedSymbol(token.value.to_string())
+                );
+            };
+
+            for op in operators {
+                expr = Ast::Unary(Unary {
+                    op,
+                    rhs: Box::new(expr),
+                });
+            }
+
+            expr
         } else {
             self.parse_primary()?
         };
@@ -162,26 +195,6 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Ast::Group(Box::new(ast)))
-    }
-
-    fn parse_unary(&mut self) -> crate::lang::Result<Ast<'a>> {
-        {
-            let token = self.shift()?;
-
-            if token.value != "-" {
-                bail!(
-                    token.position,
-                    Error::Expected("-".to_string(), token.value.to_string())
-                );
-            }
-        }
-
-        let ast = self.parse_ast()?;
-
-        Ok(Ast::Unary(Unary {
-            op: Operator::Sub,
-            rhs: Box::new(ast),
-        }))
     }
 
     fn parse_primary<'b>(&'b mut self) -> crate::lang::Result<Ast<'a>> {

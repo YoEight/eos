@@ -129,6 +129,13 @@ impl<'a> Ast<'a> {
         }
     }
 
+    pub fn as_number_opt(&self) -> Option<u64> {
+        match self {
+            Ast::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
     pub fn as_var(&self) -> Var<'_> {
         match self {
             Ast::Var(v) => *v,

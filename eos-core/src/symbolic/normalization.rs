@@ -44,12 +44,12 @@ fn normalize_unary(unary: Unary) -> Unary {
 
 fn distribute_mul_over_additive<'a>(primary: Ast<'a>, target: Ast<'a>) -> Ast<'a> {
     let mut additive_collector = CollectAdditives::default();
-    additive_collector.collect(&target);
+    additive_collector.collect(target);
     let mut agg: Ast<'a> = primary.clone();
 
     for (idx, additive) in additive_collector.into_inner().into_iter().enumerate() {
         agg = if idx == 0 {
-            if additive.is_add {
+            if additive.positive {
                 additive
                     .inner
                     .clone()
@@ -71,7 +71,7 @@ fn distribute_mul_over_additive<'a>(primary: Ast<'a>, target: Ast<'a>) -> Ast<'a
             }
         } else {
             Ast::Binary(Binary {
-                op: if additive.is_add {
+                op: if additive.positive {
                     Operator::Add
                 } else {
                     Operator::Sub

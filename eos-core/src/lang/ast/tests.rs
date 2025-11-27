@@ -100,3 +100,21 @@ fn test_parser_sum_with_sub() -> crate::lang::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_parser_unary_complex() -> crate::lang::Result<()> {
+    let parser = Parser::new("- 1 - 2");
+
+    let ast = parser.parse_top_level_ast()?;
+    let binary = ast.as_binary();
+
+    let lhs = binary.lhs.as_unary();
+    let rhs = binary.rhs.as_number();
+
+    assert_eq!(lhs.op, Operator::Sub);
+    assert_eq!(lhs.rhs.as_number(), 1);
+
+    assert_eq!(rhs, 2);
+
+    Ok(())
+}
