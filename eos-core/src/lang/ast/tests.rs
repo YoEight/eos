@@ -1,5 +1,5 @@
-use crate::lang::ast::parser::Parser;
 use crate::lang::ast::Operator;
+use crate::lang::ast::parser::Parser;
 
 #[test]
 fn test_parser_sum() -> crate::lang::Result<()> {

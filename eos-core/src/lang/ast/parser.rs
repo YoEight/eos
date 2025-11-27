@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
             bail!(token.position, Error::UnexpectedEOF);
         }
 
-        if token.sym == Sym::Number || token.sym == Sym::Variable || token.value == "-" {
+        if matches!(token.sym, Sym::Number | Sym::Variable) || matches!(token.value, "-" | "+") {
             return self.parse_binary(0);
         }
 
@@ -97,19 +97,20 @@ impl<'a> Parser<'a> {
 
         let mut lhs = if token.value == "(" {
             self.parse_group()?
-        } else if token.value == "-" {
+        } else if matches!(token.value, "-" | "+") {
             self.shift()?;
-            let mut count = 1usize;
+
+            let mut operators = vec![into_operator(token.value)];
 
             loop {
                 let token = self.look_ahead()?;
 
-                if token.value != "-" {
+                if !matches!(token.value, "-" | "+") {
                     break;
                 }
 
                 self.shift()?;
-                count += 1;
+                operators.push(into_operator(token.value));
             }
 
             let token = self.look_ahead()?;
@@ -125,13 +126,11 @@ impl<'a> Parser<'a> {
                 );
             };
 
-            while count > 0 {
+            for op in operators {
                 expr = Ast::Unary(Unary {
-                    op: Operator::Sub,
+                    op,
                     rhs: Box::new(expr),
                 });
-
-                count -= 1;
             }
 
             expr

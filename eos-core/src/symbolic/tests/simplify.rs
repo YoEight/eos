@@ -27,3 +27,39 @@ fn test_simplify_simple_sub_1() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_group_sub_1() -> crate::Result<()> {
+    let expr = normalize(parse("- (1 + 4) - 2")?);
+
+    assert_eq!("-7", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_unary() -> crate::Result<()> {
+    let expr = normalize(parse("--42")?);
+
+    assert_eq!("42", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_unary_plus() -> crate::Result<()> {
+    let expr = normalize(parse("+++++++42")?);
+
+    assert_eq!("42", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_unary_group() -> crate::Result<()> {
+    let expr = normalize(parse("-(2 - 4)")?);
+
+    assert_eq!("2", simplify(expr).pretty_print());
+
+    Ok(())
+}

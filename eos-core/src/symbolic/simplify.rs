@@ -1,6 +1,6 @@
+use crate::Ast;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::CollectAdditives;
-use crate::Ast;
 
 pub fn simplify(ast: Ast) -> Ast {
     match ast {
@@ -90,9 +90,23 @@ fn simplify_binary(mut binary: Binary) -> Ast {
 }
 
 fn simplify_unary(mut unary: Unary) -> Ast {
-    let rhs = simplify(*unary.rhs);
+    let mut rhs = simplify(*unary.rhs);
+    let mut is_positive = true;
 
-    unary.rhs = Box::new(rhs);
+    while let Ast::Unary(u) = rhs {
+        if u.op == Operator::Sub {
+            is_positive = !is_positive;
+        }
 
-    Ast::Unary(unary)
+        rhs = *u.rhs;
+    }
+
+    if unary.op == Operator::Sub && is_positive || unary.op == Operator::Add && !is_positive {
+        unary.op = Operator::Sub;
+        unary.rhs = Box::new(rhs);
+
+        return Ast::Unary(unary);
+    }
+
+    rhs
 }
