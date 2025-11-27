@@ -1,6 +1,6 @@
-use crate::Ast;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::CollectAdditives;
+use crate::Ast;
 
 pub fn simplify(ast: Ast) -> Ast {
     match ast {
@@ -61,27 +61,25 @@ fn simplify_binary(mut binary: Binary) -> Ast {
         if let Some(other_terms) = other_terms {
             if agg == 0 {
                 other_terms
+            } else if agg > 0 {
+                Ast::Binary(Binary {
+                    op: Operator::Add,
+                    rhs: Box::new(other_terms),
+                    lhs: Box::new(Ast::Number(agg as u64)),
+                })
             } else {
-                if agg > 0 {
-                    Ast::Binary(Binary {
-                        op: Operator::Add,
-                        rhs: Box::new(other_terms),
-                        lhs: Box::new(Ast::Number(agg as u64)),
-                    })
-                } else {
-                    Ast::Binary(Binary {
-                        op: Operator::Sub,
-                        rhs: Box::new(other_terms),
-                        lhs: Box::new(Ast::Number(agg.abs() as u64)),
-                    })
-                }
+                Ast::Binary(Binary {
+                    op: Operator::Sub,
+                    rhs: Box::new(other_terms),
+                    lhs: Box::new(Ast::Number(agg.unsigned_abs())),
+                })
             }
         } else if agg >= 0 {
             Ast::Number(agg as u64)
         } else {
             Ast::Unary(Unary {
                 op: Operator::Sub,
-                rhs: Box::new(Ast::Number(agg.abs() as u64)),
+                rhs: Box::new(Ast::Number(agg.unsigned_abs())),
             })
         }
     } else {
