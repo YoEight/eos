@@ -1,6 +1,6 @@
+use crate::Ast;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::CollectAdditives;
-use crate::Ast;
 
 pub fn simplify(ast: Ast) -> Ast {
     match ast {
