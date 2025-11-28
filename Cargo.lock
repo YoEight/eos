@@ -3,5 +3,9 @@
 version = 4
 
 [[package]]
+name = "eos"
+version = "0.1.0"
+
+[[package]]
 name = "eos-core"
 version = "0.1.0"
