@@ -108,3 +108,30 @@ fn test_simplify_vars() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_vars_nullify() -> crate::Result<()> {
+    let expr = normalize(parse("2 * x - 2*x + 2")?);
+
+    assert_eq!("2", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_vars_single_positive() -> crate::Result<()> {
+    let expr = normalize(parse("2 * x - 1*x + 2")?);
+
+    assert_eq!("x + 2", simplify(expr).pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_vars_single_negative() -> crate::Result<()> {
+    let expr = normalize(parse("2 * x - 3 * x + 2")?);
+
+    assert_eq!("-x + 2", simplify(expr).pretty_print());
+
+    Ok(())
+}
