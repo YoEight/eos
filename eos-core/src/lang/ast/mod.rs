@@ -67,7 +67,7 @@ impl Display for Operator {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Var<'a> {
     pub name: &'a str,
     pub exponent: u64,
