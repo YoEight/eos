@@ -1,97 +1,35 @@
-use ratatui::{
-    Frame,
-    crossterm::event::{self, Event, KeyCode},
-};
+use std::io;
 
-#[derive(Default)]
-struct App {
-    input: String,
-    cursor: usize,
-}
+use eos_core::evaluate;
+use glyph::{Input, Options, in_memory_inputs};
 
-impl App {
-    fn insert_char(&mut self, c: char) {
-        if self.cursor >= self.input.len() {
-            self.input.push(c);
-            self.cursor = self.input.len() - 1;
-        } else {
-            self.input.insert(self.cursor, c);
-            self.cursor += 1;
-        }
-    }
+fn main() -> io::Result<()> {
+    let options = Options::default()
+        .header(include_str!("../etc/header.txt"))
+        .author("Yo Eight")
+        .version("0.1.0")
+        .date("November, 28th 2025");
 
-    fn move_right(&mut self) {
-        if self.cursor >= self.input.len() {
-            return;
-        }
+    let mut inputs = in_memory_inputs(options)?;
 
-        self.cursor += 1;
-    }
+    while let Some(input) = inputs.next_input()? {
+        match input {
+            Input::Exit => break,
 
-    fn move_left(&mut self) {
-        self.cursor = self.cursor.saturating_sub(1);
-    }
-
-    fn delete_char(&mut self) {
-        if self.cursor == 0 {
-            return;
-        }
-
-        self.input.remove(self.cursor);
-
-        if self.cursor >= self.input.len() - 1 {
-            self.cursor = self.input.len() - 1;
-        }
-    }
-
-    fn backspace(&mut self) {
-        self.delete_char();
-        self.cursor = self.cursor.saturating_sub(1);
-    }
-
-    fn render(&self, frame: &mut Frame) {}
-}
-
-fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
-    let mut terminal = ratatui::init();
-    let mut app = App::default();
-
-    loop {
-        terminal.draw(|f| app.render(f))?;
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Enter => {
-                    if app.input.as_str() == ":quit" {
-                        break;
-                    }
+            Input::String(expr) => {
+                if matches!(expr.as_str(), "exit" | "quit") {
+                    break;
                 }
 
-                KeyCode::Char(c) => {
-                    app.insert_char(c);
+                match evaluate(expr.as_str()) {
+                    Ok(res) => println!("> {}", res.pretty_print()),
+                    Err(e) => println!("ERR: {e}"),
                 }
-
-                KeyCode::Left => {
-                    app.move_left();
-                }
-
-                KeyCode::Right => {
-                    app.move_right();
-                }
-
-                KeyCode::Backspace => {
-                    app.backspace();
-                }
-
-                KeyCode::Delete => {
-                    app.delete_char();
-                }
-
-                _ => {}
             }
+
+            _ => {}
         }
     }
 
-    ratatui::restore();
     Ok(())
 }
