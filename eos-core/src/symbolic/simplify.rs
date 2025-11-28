@@ -1,7 +1,7 @@
-use crate::Ast;
 use crate::lang::ast::Var;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::{CollectAdditives, CollectMultiplicatives};
+use crate::Ast;
 use std::collections::BTreeMap;
 
 pub fn simplify(ast: Ast) -> Ast {
@@ -59,6 +59,57 @@ fn simplify_binary(mut binary: Binary) -> Ast {
                             (Ast::Number(n), Ast::Var(x)) | (Ast::Var(x), Ast::Number(n)) => {
                                 let value = terms.entry(x).or_default();
                                 *value += (n as i64) * scalar;
+                            }
+
+                            (Ast::Unary(unary), Ast::Var(x)) | (Ast::Var(x), Ast::Unary(unary)) => {
+                                match *unary.rhs {
+                                    Ast::Number(n) => {
+                                        let scalar: i64 = if additive.positive { 1 } else { -1 };
+                                        let value = terms.entry(x).or_default();
+                                        *value += (n as i64) * scalar;
+                                    }
+
+                                    other => {
+                                        let op = if additive.positive {
+                                            Operator::Add
+                                        } else {
+                                            Operator::Sub
+                                        };
+
+                                        if let Some(previous) = other_terms.take() {
+                                            if op == Operator::Sub {
+                                                other_terms = Some(Ast::Binary(Binary {
+                                                    op: Operator::Add,
+                                                    lhs: Box::new(previous),
+                                                    rhs: Box::new(Ast::Binary(Binary {
+                                                        op,
+                                                        lhs: Box::new(Ast::Var(x)),
+                                                        rhs: Box::new(other),
+                                                    })),
+                                                }))
+                                            } else {
+                                                other_terms = Some(Ast::Binary(Binary {
+                                                    op: Operator::Add,
+                                                    lhs: Box::new(previous),
+                                                    rhs: Box::new(Ast::Binary(Binary {
+                                                        op,
+                                                        lhs: Box::new(other),
+                                                        rhs: Box::new(Ast::Var(x)),
+                                                    })),
+                                                }))
+                                            }
+                                        } else {
+                                            other_terms = if op == Operator::Sub {
+                                                Some(Ast::Unary(Unary {
+                                                    op: unary.op,
+                                                    rhs: Box::new(other),
+                                                }))
+                                            } else {
+                                                Some(other)
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             (lhs, rhs) => {
