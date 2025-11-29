@@ -265,11 +265,14 @@ fn simplify_binary(binary: Binary) -> Ast {
         };
 
         if let Some(agg_vars) = agg_vars {
-            Ast::Binary(Binary {
-                op: Operator::Add,
-                lhs: Box::new(agg_vars),
-                rhs: Box::new(scalar),
-            })
+            match scalar {
+                Ast::Number(0) => agg_vars,
+                other => Ast::Binary(Binary {
+                    op: Operator::Add,
+                    lhs: Box::new(agg_vars),
+                    rhs: Box::new(other),
+                }),
+            }
         } else {
             scalar
         }
