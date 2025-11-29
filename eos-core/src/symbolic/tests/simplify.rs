@@ -144,3 +144,11 @@ fn test_simplify_vars_unary_positive() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_higher_order_terms() -> crate::Result<()> {
+    let expr = normalize(parse("-2 * x - 7 * x^2")?);
+
+    assert_eq!("-2 * x - 7 * x ^ 2", simplify(expr).pretty_print());
+    Ok(())
+}
