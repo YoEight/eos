@@ -11,3 +11,9 @@ pub fn parse(expr: &str) -> Result<Ast<'_>> {
 
     parser.parse_top_level_ast()
 }
+
+pub fn evaluate(expr: &str) -> Result<Ast<'_>> {
+    let parser = Parser::new(expr);
+
+    Ok(simplify(normalize(parser.parse_top_level_ast()?)))
+}

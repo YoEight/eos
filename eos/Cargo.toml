@@ -1,0 +1,11 @@
+[package]
+name = "eos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies.glyph]
+git = "https://github.com/YoEight/glyph.git"
+tag = "0.1.0"
+
+[dependencies.eos-core]
+path = "../eos-core"
