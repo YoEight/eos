@@ -13,19 +13,34 @@ pub fn simplify(ast: Ast) -> Ast {
     }
 }
 
-fn simplify_binary(mut binary: Binary) -> Ast {
+fn simplify_binary(binary: Binary) -> Ast {
     let lhs = simplify(*binary.lhs);
     let rhs = simplify(*binary.rhs);
 
-    binary = Binary {
-        op: binary.op,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    };
-
     if matches!(binary.op, Operator::Add | Operator::Sub) {
+        let (lhs, rhs) = match (lhs, rhs) {
+            (Ast::Number(0), other) => {
+                return if binary.op == Operator::Add {
+                    other
+                } else {
+                    Ast::Unary(Unary {
+                        op: Operator::Sub,
+                        rhs: Box::new(other),
+                    })
+                };
+            }
+
+            (other, Ast::Number(0)) => return other,
+
+            (lsh, rhs) => (lsh, rhs),
+        };
+
         let mut collector = CollectAdditives::default();
-        collector.collect(Ast::Binary(binary));
+        collector.collect(Ast::Binary(Binary {
+            op: binary.op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }));
 
         let mut agg = 0i64;
         let mut other_terms = None;
@@ -212,11 +227,37 @@ fn simplify_binary(mut binary: Binary) -> Ast {
             };
 
             if let Some(vars) = agg_vars.take() {
-                agg_vars = Some(Ast::Binary(Binary {
-                    op: Operator::Add,
-                    lhs: Box::new(var),
-                    rhs: Box::new(vars),
-                }));
+                let term = match vars {
+                    Ast::Binary(binary) => match *binary.lhs {
+                        Ast::Unary(unary) => Ast::Binary(Binary {
+                            op: unary.op,
+                            lhs: Box::new(var),
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: unary.rhs,
+                                rhs: binary.rhs,
+                            })),
+                        }),
+
+                        other => Ast::Binary(Binary {
+                            op: Operator::Add,
+                            lhs: Box::new(var),
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: Box::new(other),
+                                rhs: binary.rhs,
+                            })),
+                        }),
+                    },
+
+                    other => Ast::Binary(Binary {
+                        op: Operator::Add,
+                        lhs: Box::new(var),
+                        rhs: Box::new(other),
+                    }),
+                };
+
+                agg_vars = Some(term);
 
                 continue;
             }
@@ -250,17 +291,24 @@ fn simplify_binary(mut binary: Binary) -> Ast {
         };
 
         if let Some(agg_vars) = agg_vars {
-            Ast::Binary(Binary {
-                op: Operator::Add,
-                lhs: Box::new(agg_vars),
-                rhs: Box::new(scalar),
-            })
+            match scalar {
+                Ast::Number(0) => agg_vars,
+                other => Ast::Binary(Binary {
+                    op: Operator::Add,
+                    lhs: Box::new(agg_vars),
+                    rhs: Box::new(other),
+                }),
+            }
         } else {
             scalar
         }
     } else if binary.op == Operator::Mul {
         let mut collector = CollectMultiplicatives::default();
-        collector.collect(Ast::Binary(binary));
+        collector.collect(Ast::Binary(Binary {
+            op: binary.op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }));
 
         let mut agg = 1i64;
         let mut other_terms = None;
@@ -333,8 +381,75 @@ fn simplify_binary(mut binary: Binary) -> Ast {
         } else {
             Ast::Number(agg as u64)
         }
+    } else if binary.op == Operator::Exp {
+        match (lhs, rhs) {
+            (Ast::Number(x), Ast::Number(y)) => Ast::Number(x ^ y),
+
+            (Ast::Var(x), Ast::Number(y)) => {
+                if x.exponent == 1 {
+                    Ast::Var(Var {
+                        name: x.name,
+                        exponent: y,
+                    })
+                } else {
+                    Ast::Var(Var {
+                        name: x.name,
+                        exponent: x.exponent + y,
+                    })
+                }
+            }
+
+            (Ast::Unary(unary), Ast::Number(y)) => match *unary.rhs {
+                Ast::Number(x) => {
+                    if matches!(unary.op, Operator::Add) {
+                        Ast::Number(x ^ y)
+                    } else {
+                        Ast::Unary(Unary {
+                            op: Operator::Sub,
+                            rhs: Box::new(Ast::Number(x ^ y)),
+                        })
+                    }
+                }
+
+                Ast::Var(mut var) => {
+                    if var.exponent == 1 {
+                        var.exponent = y;
+                    } else {
+                        var.exponent += y;
+                    }
+
+                    if unary.op == Operator::Add {
+                        Ast::Var(var)
+                    } else {
+                        Ast::Unary(Unary {
+                            op: Operator::Sub,
+                            rhs: Box::new(Ast::Var(var)),
+                        })
+                    }
+                }
+
+                other => Ast::Binary(Binary {
+                    op: Operator::Exp,
+                    lhs: Box::new(Ast::Unary(Unary {
+                        op: unary.op,
+                        rhs: Box::new(other),
+                    })),
+                    rhs: Box::new(Ast::Number(y)),
+                }),
+            },
+
+            (lhs, rhs) => Ast::Binary(Binary {
+                op: binary.op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            }),
+        }
     } else {
-        Ast::Binary(binary)
+        Ast::Binary(Binary {
+            op: binary.op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        })
     }
 }
 
