@@ -95,7 +95,7 @@ impl<'a> Ast<'a> {
                 Ast::Var(v) => match v.exponent {
                     0 => result.push('1'),
                     1 => result.push_str(v.name),
-                    _ => result.push_str(&format!("{}^{}", v.name, v.exponent)),
+                    _ => result.push_str(&format!("{} ^ {}", v.name, v.exponent)),
                 },
 
                 Ast::Binary(binary) => {

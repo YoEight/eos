@@ -1,7 +1,7 @@
+use crate::Ast;
 use crate::lang::ast::Var;
 use crate::lang::{Binary, Operator, Unary};
 use crate::symbolic::collect::{CollectAdditives, CollectMultiplicatives};
-use crate::Ast;
 use std::collections::BTreeMap;
 
 pub fn simplify(ast: Ast) -> Ast {
@@ -227,11 +227,37 @@ fn simplify_binary(binary: Binary) -> Ast {
             };
 
             if let Some(vars) = agg_vars.take() {
-                agg_vars = Some(Ast::Binary(Binary {
-                    op: Operator::Add,
-                    lhs: Box::new(var),
-                    rhs: Box::new(vars),
-                }));
+                let term = match vars {
+                    Ast::Binary(binary) => match *binary.lhs {
+                        Ast::Unary(unary) => Ast::Binary(Binary {
+                            op: unary.op,
+                            lhs: Box::new(var),
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: unary.rhs,
+                                rhs: binary.rhs,
+                            })),
+                        }),
+
+                        other => Ast::Binary(Binary {
+                            op: Operator::Add,
+                            lhs: Box::new(var),
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: Box::new(other),
+                                rhs: binary.rhs,
+                            })),
+                        }),
+                    },
+
+                    other => Ast::Binary(Binary {
+                        op: Operator::Add,
+                        lhs: Box::new(var),
+                        rhs: Box::new(other),
+                    }),
+                };
+
+                agg_vars = Some(term);
 
                 continue;
             }
