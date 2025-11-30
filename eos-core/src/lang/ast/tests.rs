@@ -128,3 +128,13 @@ fn test_parser_with_variables() -> crate::lang::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_parser_compact_syntax() -> crate::lang::Result<()> {
+    let parser = Parser::new("2x3");
+    let ast = parser.parse_top_level_ast()?;
+
+    assert_eq!(ast.pretty_print(), "2 * x ^ 3");
+
+    Ok(())
+}

@@ -62,7 +62,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 _ if c.is_ascii_alphabetic() => {
-                    let name = self.take_while(|c| c.is_ascii_alphanumeric());
+                    let name = self.take_while(|c| c.is_ascii_alphabetic());
                     Ok(Token::new(Sym::Variable, start, name))
                 }
 
