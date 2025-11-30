@@ -202,6 +202,34 @@ impl<'a> Parser<'a> {
 
         if token.sym == Sym::Number {
             let value = token.value.parse::<u64>().expect("valid number format");
+            let var = self.look_ahead()?;
+
+            if var.sym == Sym::Variable {
+                self.shift()?;
+                let exp = self.look_ahead()?;
+
+                if exp.sym == Sym::Number {
+                    self.shift()?;
+
+                    return Ok(Ast::Binary(Binary {
+                        op: Operator::Mul,
+                        lhs: Box::new(Ast::Number(value)),
+                        rhs: Box::new(Ast::Var(Var {
+                            name: var.value,
+                            exponent: exp.value.parse::<u64>().expect("valid number format"),
+                        })),
+                    }));
+                }
+
+                return Ok(Ast::Binary(Binary {
+                    op: Operator::Mul,
+                    lhs: Box::new(Ast::Number(value)),
+                    rhs: Box::new(Ast::Var(Var {
+                        name: var.value,
+                        exponent: 1,
+                    })),
+                }));
+            }
 
             return Ok(Ast::Number(value));
         } else if token.sym == Sym::Variable {
