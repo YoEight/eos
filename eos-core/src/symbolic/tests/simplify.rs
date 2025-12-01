@@ -176,5 +176,15 @@ fn test_simplify_fractions_multiple_negative() -> crate::Result<()> {
     let expr = evaluate("-4/2")?;
 
     assert_eq!("-2", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_heterogeneous() -> crate::Result<()> {
+    let expr = evaluate("1/2 + 1/3")?;
+
+    assert_eq!("5 / 6", expr.pretty_print());
+
     Ok(())
 }

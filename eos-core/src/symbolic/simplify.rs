@@ -233,16 +233,31 @@ fn simplify_binary(binary: Binary) -> Ast {
             }
         }
 
-        for (denom, num) in fractions {
-            if denom == 1 {
-                agg += num;
-                continue;
+        fractions.retain(|denom, num| {
+            if *denom == 1 {
+                agg += *num;
+                return false;
             }
 
             if num.unsigned_abs() % denom == 0 {
-                agg += num / denom as i64;
+                agg += *num / *denom as i64;
+                return false;
+            }
+
+            true
+        });
+
+        let mut agg_fraction: Option<(i64, u64)> = None;
+        for (denom, num) in fractions {
+            if let Some((agg_num, agg_denom)) = agg_fraction {
+                let new_agg_denom = agg_denom * denom;
+                let new_agg_num = agg_num * (denom as i64) + num * (agg_denom as i64);
+
+                agg_fraction = Some((new_agg_num, new_agg_denom));
                 continue;
             }
+
+            agg_fraction = Some((num, denom));
         }
 
         let mut agg_vars = None;
@@ -337,6 +352,38 @@ fn simplify_binary(binary: Binary) -> Ast {
                 op: Operator::Sub,
                 rhs: Box::new(Ast::Number(agg.unsigned_abs())),
             })
+        };
+
+        let scalar = if let Some((num, denom)) = agg_fraction {
+            if num == 0 {
+                scalar
+            } else {
+                let op = if num < 0 {
+                    Operator::Sub
+                } else {
+                    Operator::Add
+                };
+
+                match scalar {
+                    Ast::Number(0) => Ast::Binary(Binary {
+                        op: Operator::Div,
+                        lhs: Box::new(Ast::Number(num.unsigned_abs())),
+                        rhs: Box::new(Ast::Number(denom)),
+                    }),
+
+                    other => Ast::Binary(Binary {
+                        op,
+                        lhs: Box::new(other),
+                        rhs: Box::new(Ast::Binary(Binary {
+                            op: Operator::Div,
+                            lhs: Box::new(Ast::Number(num.unsigned_abs())),
+                            rhs: Box::new(Ast::Number(denom)),
+                        })),
+                    }),
+                }
+            }
+        } else {
+            scalar
         };
 
         if let Some(agg_vars) = agg_vars {
