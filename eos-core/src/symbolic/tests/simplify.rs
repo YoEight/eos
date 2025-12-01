@@ -1,5 +1,5 @@
 use crate::symbolic::simplify::simplify;
-use crate::{normalize, parse};
+use crate::{evaluate, normalize, parse};
 
 #[test]
 fn test_simplify_simple() -> crate::Result<()> {
@@ -151,5 +151,30 @@ fn test_simplify_higher_order_terms() -> crate::Result<()> {
     let expr = normalize(parse("-2 * x - 7 * x^2")?);
 
     assert_eq!("-2 * x - 7 * x ^ 2", simplify(expr).pretty_print());
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions() -> crate::Result<()> {
+    let expr = evaluate("1/2 + 1/2")?;
+
+    assert_eq!("1", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_multiple() -> crate::Result<()> {
+    let expr = evaluate("4/2")?;
+
+    assert_eq!("2", expr.pretty_print());
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_multiple_negative() -> crate::Result<()> {
+    let expr = evaluate("-4/2")?;
+
+    assert_eq!("-2", expr.pretty_print());
     Ok(())
 }
