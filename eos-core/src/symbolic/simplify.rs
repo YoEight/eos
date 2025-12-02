@@ -45,6 +45,7 @@ fn simplify_binary(binary: Binary) -> Ast {
         let mut agg = 0i64;
         let mut other_terms = None;
         let mut terms = BTreeMap::<Var, i64>::new();
+        let mut fractions = BTreeMap::<u64, i64>::new();
 
         for additive in collector.into_inner() {
             match additive.inner {
@@ -157,6 +158,42 @@ fn simplify_binary(binary: Binary) -> Ast {
                         }
 
                         continue;
+                    } else if binary.op == Operator::Div {
+                        match (*binary.lhs, *binary.rhs) {
+                            (Ast::Number(num), Ast::Number(denom)) => {
+                                let scalar: i64 = if additive.positive { 1 } else { -1 };
+                                let value = (num as i64) * scalar;
+
+                                *fractions.entry(denom).or_default() += value;
+                            }
+
+                            (lhs, rhs) => {
+                                if let Some(previous) = other_terms.take() {
+                                    let op = if additive.positive {
+                                        Operator::Add
+                                    } else {
+                                        Operator::Sub
+                                    };
+
+                                    other_terms = Some(Ast::Binary(Binary {
+                                        op,
+                                        lhs: Box::new(previous),
+                                        rhs: Box::new(Ast::Binary(Binary {
+                                            op: binary.op,
+                                            lhs: Box::new(lhs),
+                                            rhs: Box::new(rhs),
+                                        })),
+                                    }));
+                                } else {
+                                    other_terms = Some(Ast::Binary(Binary {
+                                        op: binary.op,
+                                        lhs: Box::new(lhs),
+                                        rhs: Box::new(rhs),
+                                    }));
+                                }
+                            }
+                        }
+                        continue;
                     }
 
                     if let Some(previous) = other_terms.take() {
@@ -193,6 +230,41 @@ fn simplify_binary(binary: Binary) -> Ast {
                         other_terms = Some(other);
                     }
                 }
+            }
+        }
+
+        fractions.retain(|denom, num| {
+            if *denom == 1 {
+                agg += *num;
+                return false;
+            }
+
+            if num.unsigned_abs() % denom == 0 {
+                agg += *num / *denom as i64;
+                return false;
+            }
+
+            true
+        });
+
+        let mut agg_fraction: Option<(i64, u64)> = None;
+        for (denom, num) in fractions {
+            if let Some((agg_num, agg_denom)) = agg_fraction {
+                let new_agg_denom = agg_denom * denom;
+                let new_agg_num = agg_num * (denom as i64) + num * (agg_denom as i64);
+
+                agg_fraction = Some((new_agg_num, new_agg_denom));
+                continue;
+            }
+
+            agg_fraction = Some((num, denom));
+        }
+
+        if let Some((num, denom)) = agg_fraction {
+            let greatest_divisor = gcd(num.unsigned_abs(), denom);
+
+            if greatest_divisor != 1 {
+                agg_fraction = Some((num / greatest_divisor as i64, denom / greatest_divisor));
             }
         }
 
@@ -290,6 +362,38 @@ fn simplify_binary(binary: Binary) -> Ast {
             })
         };
 
+        let scalar = if let Some((num, denom)) = agg_fraction {
+            if num == 0 {
+                scalar
+            } else {
+                let op = if num < 0 {
+                    Operator::Sub
+                } else {
+                    Operator::Add
+                };
+
+                match scalar {
+                    Ast::Number(0) => Ast::Binary(Binary {
+                        op: Operator::Div,
+                        lhs: Box::new(Ast::Number(num.unsigned_abs())),
+                        rhs: Box::new(Ast::Number(denom)),
+                    }),
+
+                    other => Ast::Binary(Binary {
+                        op,
+                        lhs: Box::new(other),
+                        rhs: Box::new(Ast::Binary(Binary {
+                            op: Operator::Div,
+                            lhs: Box::new(Ast::Number(num.unsigned_abs())),
+                            rhs: Box::new(Ast::Number(denom)),
+                        })),
+                    }),
+                }
+            }
+        } else {
+            scalar
+        };
+
         if let Some(agg_vars) = agg_vars {
             match scalar {
                 Ast::Number(0) => agg_vars,
@@ -380,6 +484,71 @@ fn simplify_binary(binary: Binary) -> Ast {
             })
         } else {
             Ast::Number(agg as u64)
+        }
+    } else if binary.op == Operator::Div {
+        match (lhs, rhs) {
+            (Ast::Number(num), Ast::Number(denom)) => {
+                let greatest_divisor = gcd(num, denom);
+                let new_denom = denom / greatest_divisor;
+
+                if new_denom == 1 {
+                    Ast::Number(num / greatest_divisor)
+                } else {
+                    Ast::Binary(Binary {
+                        op: binary.op,
+                        lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                        rhs: Box::new(Ast::Number(new_denom)),
+                    })
+                }
+            }
+
+            (Ast::Unary(unary), Ast::Number(denom)) => match *unary.rhs {
+                Ast::Number(num) => {
+                    let greatest_divisor = gcd(num, denom);
+                    let new_denom = denom / greatest_divisor;
+
+                    if new_denom == 1 {
+                        if unary.op == Operator::Add {
+                            Ast::Number(num / greatest_divisor)
+                        } else {
+                            Ast::Unary(Unary {
+                                op: unary.op,
+                                rhs: Box::new(Ast::Number(num / greatest_divisor)),
+                            })
+                        }
+                    } else if unary.op == Operator::Sub {
+                        Ast::Unary(Unary {
+                            op: unary.op,
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                                rhs: Box::new(Ast::Number(denom / greatest_divisor)),
+                            })),
+                        })
+                    } else {
+                        Ast::Binary(Binary {
+                            op: binary.op,
+                            lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                            rhs: Box::new(Ast::Number(denom / greatest_divisor)),
+                        })
+                    }
+                }
+
+                other => Ast::Binary(Binary {
+                    op: Operator::Div,
+                    lhs: Box::new(Ast::Unary(Unary {
+                        op: unary.op,
+                        rhs: Box::new(other),
+                    })),
+                    rhs: Box::new(Ast::Number(denom)),
+                }),
+            },
+
+            (lhs, rhs) => Ast::Binary(Binary {
+                op: Operator::Div,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            }),
         }
     } else if binary.op == Operator::Exp {
         match (lhs, rhs) {
@@ -473,4 +642,14 @@ fn simplify_unary(mut unary: Unary) -> Ast {
     }
 
     rhs
+}
+
+fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        let r = a % b;
+        a = b;
+        b = r;
+    }
+
+    a
 }
