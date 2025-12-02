@@ -188,3 +188,48 @@ fn test_simplify_fractions_heterogeneous() -> crate::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_simplify_fractions_denom_1() -> crate::Result<()> {
+    let expr = evaluate("2/1")?;
+
+    assert_eq!("2", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_denom_1_negative() -> crate::Result<()> {
+    let expr = evaluate("-2/1")?;
+
+    assert_eq!("-2", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_common_divisible() -> crate::Result<()> {
+    let expr = evaluate("2/4")?;
+
+    assert_eq!("1 / 2", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_common_divisible_negative() -> crate::Result<()> {
+    let expr = evaluate("-2/4")?;
+
+    assert_eq!("-1 / 2", expr.pretty_print());
+
+    Ok(())
+}
+
+#[test]
+fn test_simplify_fractions_heterogeneous_divisible() -> crate::Result<()> {
+    let expr = evaluate("3/12 + 3/12")?;
+
+    assert_eq!("1 / 2", expr.pretty_print());
+
+    Ok(())
+}

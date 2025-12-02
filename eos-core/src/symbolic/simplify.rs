@@ -260,6 +260,14 @@ fn simplify_binary(binary: Binary) -> Ast {
             agg_fraction = Some((num, denom));
         }
 
+        if let Some((num, denom)) = agg_fraction {
+            let greatest_divisor = gcd(num.unsigned_abs(), denom);
+
+            if greatest_divisor != 1 {
+                agg_fraction = Some((num / greatest_divisor as i64, denom / greatest_divisor));
+            }
+        }
+
         let mut agg_vars = None;
         for (v, value) in terms.into_iter().rev() {
             if value == 0 {
@@ -479,16 +487,50 @@ fn simplify_binary(binary: Binary) -> Ast {
         }
     } else if binary.op == Operator::Div {
         match (lhs, rhs) {
-            (Ast::Number(num), Ast::Number(denom)) if num % denom == 0 => Ast::Number(num / denom),
+            (Ast::Number(num), Ast::Number(denom)) => {
+                let greatest_divisor = gcd(num, denom);
+                let new_denom = denom / greatest_divisor;
+
+                if new_denom == 1 {
+                    Ast::Number(num / greatest_divisor)
+                } else {
+                    Ast::Binary(Binary {
+                        op: binary.op,
+                        lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                        rhs: Box::new(Ast::Number(new_denom)),
+                    })
+                }
+            }
+
             (Ast::Unary(unary), Ast::Number(denom)) => match *unary.rhs {
-                Ast::Number(num) if num % denom == 0 => {
-                    if unary.op == Operator::Sub {
+                Ast::Number(num) => {
+                    let greatest_divisor = gcd(num, denom);
+                    let new_denom = denom / greatest_divisor;
+
+                    if new_denom == 1 {
+                        if unary.op == Operator::Add {
+                            Ast::Number(num / greatest_divisor)
+                        } else {
+                            Ast::Unary(Unary {
+                                op: unary.op,
+                                rhs: Box::new(Ast::Number(num / greatest_divisor)),
+                            })
+                        }
+                    } else if unary.op == Operator::Sub {
                         Ast::Unary(Unary {
                             op: unary.op,
-                            rhs: Box::new(Ast::Number(num / denom)),
+                            rhs: Box::new(Ast::Binary(Binary {
+                                op: binary.op,
+                                lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                                rhs: Box::new(Ast::Number(denom / greatest_divisor)),
+                            })),
                         })
                     } else {
-                        Ast::Number(num / denom)
+                        Ast::Binary(Binary {
+                            op: binary.op,
+                            lhs: Box::new(Ast::Number(num / greatest_divisor)),
+                            rhs: Box::new(Ast::Number(denom / greatest_divisor)),
+                        })
                     }
                 }
 
@@ -600,4 +642,14 @@ fn simplify_unary(mut unary: Unary) -> Ast {
     }
 
     rhs
+}
+
+fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        let r = a % b;
+        a = b;
+        b = r;
+    }
+
+    a
 }
